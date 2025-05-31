@@ -51,6 +51,18 @@ public class UrlController : ControllerBase
         return Redirect(shortenedUrl.OriginalUrl);
     }*/
 
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<ShortenedUrl>>> GetAllShortenedUrls()
+    {
+        var shortenedUrls = await UrlShorteningService.GetAllShortenedUrlsAsync();
+        if (shortenedUrls == null || !shortenedUrls.Any())
+        {
+            return NotFound("No shortened URLs found.");
+        }
+
+        return Ok(shortenedUrls);
+    }
+
 
     [HttpGet("analytics/{code}")]
     public async Task<ActionResult<ShortenedUrl>> GetAnalytics(string code)
@@ -60,7 +72,7 @@ public class UrlController : ControllerBase
             return BadRequest("Code cannot be null or empty.");
         }
 
-        var shortenedUrl = await UrlShorteningService.GetShortenedUrlByCodeAsync(code);
+        var shortenedUrl = await UrlShorteningService.GetShortenedUrlAnalyticsByCodeAsync(code);
         if (shortenedUrl == null)
         {
             return NotFound("Shortened URL not found.");

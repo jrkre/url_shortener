@@ -1,0 +1,60 @@
+services:
+
+  mariadb-prod:
+    image: mariadb:latest
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: mariadb!2144845
+      MARIADB_DATABASE: urlshortenerdb
+      MARIADB_USER: user
+      MARIADB_PASSWORD: password_for_url_shortener
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - url-shortener-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$MARIADB_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+
+  # client:
+  #   build:
+  #     context: ./ClientApp
+  #   ports:
+  #     - "3000:80"
+  #   restart: always
+  #   networks:
+  #     - url-shortener-network
+
+  server:
+    build:
+      context: .
+    ports:
+      - "5000:8080"
+      - "2443:2443"
+    depends_on:
+      # - client
+      - mariadb-prod
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTPS_PORT=2443
+      - ConnectionStrings__DefaultConnection=server=mariadb-prod;database=urlshortenerdb;user=user;password=password_for_url_shortener;
+    restart: always
+    volumes:
+      - dpkeys:/var/dpkeys
+    networks:
+      - url-shortener-network
+
+
+networks:
+  url-shortener-network:
+    driver: bridge
+
+volumes:
+  dpkeys:
+  db_data:

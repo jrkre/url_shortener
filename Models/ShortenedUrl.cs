@@ -6,12 +6,20 @@ namespace url_shortener.Models;
 public class ShortenedUrl
 {
     [Key]
-    [Required]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public Guid Id { get; set; }
     public bool IsActive { get; set; } = true; // Optional: to mark if the shortened URL is active or not
+
+
+    [Required]
+    [MaxLength(2048)]
     public string OriginalUrl { get; set; }
+
+    [Required]
+    [MaxLength(255)]
     public string ShortUrl { get; set; }
+    
+    [Required]
+    [MaxLength(10)]
     public string Code { get; set; } // Optional: a unique code for the shortened URL
     public DateTime CreatedAt { get; set; }
     public DateTime? ExpirationDate { get; set; }

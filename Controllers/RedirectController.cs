@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using url_shortener.Models;
 using url_shortener.Services;
 
 namespace url_shortener.Controllers;
@@ -21,18 +22,23 @@ public class RedirectController : ControllerBase
         {
             return BadRequest("Short code cannot be null or empty.");
         }
-    
-        var shortenedUrl = await _urlShorteningService.GetShortenedUrlByCodeAsync(shortCode);
+
+        ShortenedUrl? shortenedUrl;
+        
+        try
+        {
+            shortenedUrl = await _urlShorteningService.GetShortenedUrlByCodeAsync(shortCode);
+        }
+        catch (Exception ex)
+        {
+            return Ok($"There was an issue finding your URL: {ex.Message}");
+        }
+
         if (shortenedUrl == null)
         {
             return NotFound("Shortened URL not found.");
         }
 
-        // Check if the URL has expired
-        if (shortenedUrl.ExpirationDate.HasValue && shortenedUrl.ExpirationDate <= DateTime.UtcNow)
-        {
-            return NotFound("This shortened URL has expired.");
-        }
 
         return Redirect(shortenedUrl.OriginalUrl);
         

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
+using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using System.IO;
 
 namespace url_shortener.Data
@@ -12,19 +13,25 @@ namespace url_shortener.Data
             var config = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
                 .AddJsonFile("appsettings.json")
+                .AddEnvironmentVariables()
                 .Build();
 
-            var folder = Environment.SpecialFolder.LocalApplicationData;
-            var path = Environment.GetFolderPath(folder);
-            var connectionstring = System.IO.Path.Join(path, "urls.db");
+            
+            var connectionString = config.GetConnectionString("DefaultConnection");
+            if (string.IsNullOrEmpty(connectionString))
+            {
+                throw new InvalidOperationException("Connection string 'DefaultConnection' not found in appsettings.json.");
+            }
+
+
             var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
-            optionsBuilder.UseSqlite($"Data Source={connectionstring}");
+            optionsBuilder.UseMySql(connectionString, new MySqlServerVersion(new Version(11, 7, 2)));
 
             //give optionsbuilder the connection string from appsettings.json if available
-            if (config.GetConnectionString("DefaultConnection") != null)
-            {
-                optionsBuilder.UseSqlite(config.GetConnectionString("DefaultConnection"));
-            }
+            // if (config.GetConnectionString("DefaultConnection") != null)
+            // {
+            //     optionsBuilder.UseMySql(config.GetConnectionString("DefaultConnection"));
+            // }
 
             return new ApplicationDbContext(optionsBuilder.Options);
         }
