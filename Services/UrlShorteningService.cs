@@ -90,7 +90,7 @@ public class UrlShorteningService
         shortenedUrl.CreatedAt = DateTime.UtcNow;
         shortenedUrl.ClickCount = 0;
         shortenedUrl.IsActive = true;
-        shortenedUrl.ShortUrl = System.IO.Path.Combine(ShortLinkSettings.BaseUrl, shortenedUrl.Code);
+        shortenedUrl.ShortUrl = System.IO.Path.Combine(ShortLinkSettings.BaseUrl, "l", shortenedUrl.Code);
 
         await _dbContext.ShortenedUrls.AddAsync(shortenedUrl);
         await _dbContext.SaveChangesAsync();

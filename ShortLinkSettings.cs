@@ -5,7 +5,7 @@ public static class ShortLinkSettings
     public const int Length = 7; // Length of the shortened URL code
 
     public const int OriginalUrlLength = 2048; // Maximum length for the original URL
-    public const string BaseUrl = "https://l.shooba.info/"; // Base URL for the shortened links
+    public const string BaseUrl = "https://lk.shooba.info/"; // Base URL for the shortened links
     public const int ExpirationDays = 30; // efault expiration period for shortened URLs in days
     public const bool EnableAnalytics = true; // Flag to enable or disable analytics tracking
     public const string Alphabet =

@@ -70,7 +70,7 @@ Setup:
 
 * dockerfile -- DONE !!!
 * prettify - i think it looks pretty good ;)
-* setup one-liner - i got a two-liner  ¯\_(ツ)_/¯  take it or leave it--
+* setup one-liner - i got a two-liner  ¯\\_(ツ)_/¯  take it or leave it--
 
 * add more features:
 * admin panel

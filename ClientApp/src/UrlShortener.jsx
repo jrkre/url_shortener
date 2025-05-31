@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import SessionUrlList from './SessionUrlList'; 
+
 
 export default function UrlShortener({ onShorten }) {
   const [url, setUrl] = useState('');
   const [requestCode, setRequestCode] = useState('');
+  const [shortenedUrls, setShortenedUrls] = useState([]);
   const [expirationDate, setExpirationDate] = useState(() => {
     const today = new Date();
     today.setDate(today.getDate() + 30); // Default to 30 days from today
@@ -29,6 +32,7 @@ export default function UrlShortener({ onShorten }) {
       });
       const data = await response.json();
       setShortUrl(data.shortUrl);
+      setShortenedUrls(prev => [data, ...prev]);
       onShorten(data)
     } catch (err) {
       console.error('Error:', err);
@@ -38,7 +42,7 @@ export default function UrlShortener({ onShorten }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 transition-colors">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 transition-colors">
       <div className="bg-white dark:bg-gray-800 shadow rounded p-8 w-full max-w-md space-y-4">
         <h1 className="text-2xl font-bold text-center text-gray-900 dark:text-white">
           URL Shortener
@@ -105,6 +109,7 @@ export default function UrlShortener({ onShorten }) {
           </div>
         )}
       </div>
+      <SessionUrlList sessionUrls={shortenedUrls}/>
     </div>
   );
 }

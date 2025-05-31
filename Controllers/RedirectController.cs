@@ -5,7 +5,7 @@ using url_shortener.Services;
 namespace url_shortener.Controllers;
 
 [ApiController]
-[Route("{shortCode}")]
+[Route("l/{shortCode}")]
 public class RedirectController : ControllerBase
 {
     private readonly UrlShorteningService _urlShorteningService;

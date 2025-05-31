@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import UrlShortener from './UrlShortener';
-import UrlList from './UrlList';
+import AllUrlList from './AllUrlList';
 import AnalyticsPage from './AnalyticsPage';
 
 function App() {
@@ -35,8 +35,8 @@ function App() {
       </div>
       <Routes>
         {/* other routes */}
-        <Route path="/" element={<UrlShortener onShorten={handleShorten} />} />
-        <Route path="/urls" element={<UrlList urls={shortenedUrls} />} />
+        <Route path="/" element={<UrlShortener onShorten={handleShorten} /> } />
+        <Route path="/urls" element={<AllUrlList  />} />
         <Route path="/analytics/:redirectCode" element={<AnalyticsPage />} />
       </Routes>
 
