@@ -1,12 +1,14 @@
 namespace url_shortener.Data;
 
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;  // Added for Identity
+using Microsoft.AspNetCore.Identity;  // Added for Identity
 using Microsoft.EntityFrameworkCore;
 using url_shortener.Models;
 using url_shortener.Settings;
 using System;
 
 
-public class ApplicationDbContext : DbContext
+public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 {
     // public string DbPath { get; }
     public DbSet<ShortenedUrl> ShortenedUrls { get; set; }
@@ -20,16 +22,23 @@ public class ApplicationDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+    base.OnModelCreating(modelBuilder);  // Added to configure Identity tables
+
         modelBuilder.Entity<ShortenedUrl>(UriBuilder =>
         {
             UriBuilder.HasKey(s => s.Id);
             UriBuilder.Property(ShortenedUrl => ShortenedUrl.OriginalUrl)
                 .IsRequired()
-                .HasMaxLength(ShortLinkSettings.OriginalUrlLength); // URL length limit
+                .HasMaxLength(ShortLinkSettings.OriginalUrlLength);
 
             UriBuilder.HasIndex(shortenedUrl => shortenedUrl.Code)
                 .IsUnique();
 
+            // Added: Configure relationship with ApplicationUser
+            UriBuilder.HasOne(s => s.User)
+                .WithMany()
+                .HasForeignKey(s => s.UserId)
+                .OnDelete(DeleteBehavior.Cascade);  // Optional: Cascade delete if user is removed
         });
     }
 

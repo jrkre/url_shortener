@@ -38,8 +38,7 @@ public class UrlShorteningService
 
     }
 
-
-    public async Task<ShortenedUrl> CreateShortenedUrlAsync(CreateShortenedUrlDto shortenedUrlDto)
+    public async Task<ShortenedUrl> CreateShortenedUrlAsync(CreateShortenedUrlDto shortenedUrlDto, string userId)
     {
 
 
@@ -58,13 +57,18 @@ public class UrlShorteningService
             throw new ArgumentException($"Expiration date cannot be more than {ShortLinkSettings.MaxExpirationDays} days in the future.", nameof(shortenedUrlDto.ExpirationDate));
         }
 
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            throw new ArgumentException("User ID is required for creating shortened URLs.");
+        }
 
 
         var shortenedUrl = new ShortenedUrl(originalUrl: shortenedUrlDto.OriginalUrl,
                                             shortenedUrl: null, // This will be set after generating the code
                                             code: null, // This will be set after generating the code
                                             createdAt: DateTime.UtcNow,
-                                            expirationDate: shortenedUrlDto.ExpirationDate ?? DateTime.UtcNow.AddDays(ShortLinkSettings.DefaultExpirationDays));
+                                            expirationDate: shortenedUrlDto.ExpirationDate ?? DateTime.UtcNow.AddDays(ShortLinkSettings.DefaultExpirationDays),
+                                            userId: userId);
 
         if (!string.IsNullOrWhiteSpace(shortenedUrlDto.RequestedCode))
         {
@@ -168,11 +172,18 @@ public class UrlShorteningService
 
         return url;
     }
-    
+
     public async Task<IEnumerable<ShortenedUrl>> GetAllShortenedUrlsAsync()
     {
         return await _dbContext.ShortenedUrls
             .Where(s => s.IsActive && (s.ExpirationDate == null || s.ExpirationDate > DateTime.UtcNow))
+            .ToListAsync();
+    }
+    
+    public async Task<IEnumerable<ShortenedUrl>> GetShortenedUrlsByUserAsync(string userId)
+    {
+        return await _dbContext.ShortenedUrls
+            .Where(s => s.UserId == userId && s.IsActive && (s.ExpirationDate == null || s.ExpirationDate > DateTime.UtcNow))
             .ToListAsync();
     }
 

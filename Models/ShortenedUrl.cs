@@ -25,6 +25,10 @@ public class ShortenedUrl
     public DateTime? ExpirationDate { get; set; }
     public int ClickCount { get; set; } // Optional: to track how many times the shortened URL has been clicked
 
+    public string? UserId { get; set; } // Optional: to associate the shortened URL with a user
+    [ForeignKey("UserId")]
+    public virtual ApplicationUser? User { get; set; } // Navigation property to the user who created the shortened URL
+
     public ShortenedUrl()
     {
         OriginalUrl = string.Empty;
@@ -32,9 +36,12 @@ public class ShortenedUrl
         Code = string.Empty;
         CreatedAt = DateTime.UtcNow; // Set the creation date to the current UTC time
         ClickCount = 0; // Initialize click count to zero
+        IsActive = true; // Default to active
+        ExpirationDate = null; // Default to no expiration date
+        UserId = string.Empty; // Default to no user association
     }
 
-    public ShortenedUrl(string originalUrl, string? shortenedUrl, string? code, DateTime? createdAt, DateTime? expirationDate = null, bool isActive = true, int? clickCount = 0)
+    public ShortenedUrl(string originalUrl, string? shortenedUrl, string? code, DateTime? createdAt, DateTime? expirationDate = null, bool isActive = true, int? clickCount = 0, string? userId = null)
     {
         OriginalUrl = originalUrl;
         ShortUrl = shortenedUrl ?? string.Empty; // Ensure ShortUrl is not null
@@ -43,5 +50,6 @@ public class ShortenedUrl
         ExpirationDate = expirationDate;
         IsActive = isActive;
         ClickCount = 0; // Initialize click count to zero
+        UserId = userId ?? string.Empty;; // Default to no user association
     }
 }

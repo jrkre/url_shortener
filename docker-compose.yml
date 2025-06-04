@@ -41,7 +41,7 @@ services:
       # - client
       - mariadb-prod
     environment:
-      - ASPNETCORE_ENVIRONMENT=Production
+      # - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_HTTPS_PORT=2443
       - ConnectionStrings__DefaultConnection=server=mariadb-prod;database=urlshortenerdb;user=user;password=password_for_url_shortener;
     restart: always
