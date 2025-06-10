@@ -42,7 +42,6 @@ public class UrlShorteningService
     public async Task<ShortenedUrl> CreateShortenedUrlAsync(CreateShortenedUrlDto shortenedUrlDto)
     {
 
-
         if (string.IsNullOrWhiteSpace(shortenedUrlDto.OriginalUrl))
         {
             throw new ArgumentException("Original URL cannot be null or empty.", nameof(shortenedUrlDto.OriginalUrl));
@@ -58,8 +57,6 @@ public class UrlShorteningService
             throw new ArgumentException($"Expiration date cannot be more than {ShortLinkSettings.MaxExpirationDays} days in the future.", nameof(shortenedUrlDto.ExpirationDate));
         }
 
-
-
         var shortenedUrl = new ShortenedUrl(originalUrl: shortenedUrlDto.OriginalUrl,
                                             shortenedUrl: null, // This will be set after generating the code
                                             code: null, // This will be set after generating the code
@@ -74,7 +71,7 @@ public class UrlShorteningService
                 throw new ArgumentException($"Requested code must contain only valid characters.", nameof(shortenedUrlDto.RequestedCode));
             }
 
-            if (await _dbContext.ShortenedUrls.AnyAsync(s => s.Code == requestedCode))
+            if (await _dbContext.ShortenedUrls.AnyAsync(s => s.Code == requestedCode && (s.ExpirationDate == null || s.ExpirationDate > DateTime.UtcNow)))
             {
                 throw new InvalidOperationException("The requested code is already in use.");
             }
