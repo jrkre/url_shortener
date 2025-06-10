@@ -51,7 +51,7 @@ export default function AnalyticsPage() {
         {analytics && (
           <div className="space-y-3 text-gray-800 dark:text-gray-200">
             <p><strong>Original URL:</strong> <a href={analytics.originalUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline break-words">{analytics.originalUrl}</a></p>
-            <p><strong>Short URL:</strong> {analytics.shortUrl}</p>
+            <p><strong>Short URL:</strong> <a href={`/l/${analytics.code}`} rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline break-words">{window.location.origin}/l/{analytics.code}</a></p>
             <p><strong>Code:</strong> {analytics.code}</p>
             <p><strong>Created At:</strong> {new Date(analytics.createdAt).toLocaleString()}</p>
             <p><strong>Expiration:</strong> {analytics.expirationDate ? new Date(analytics.expirationDate).toLocaleString() : 'None'}</p>
