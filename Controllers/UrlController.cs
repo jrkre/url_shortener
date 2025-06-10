@@ -89,7 +89,76 @@ public class UrlController : ControllerBase
             return NotFound("Shortened URL not found.");
         }
 
-        return Ok(shortenedUrl);
+
+        // form urlanalyticsdto
+        var urlAnalyticsDto = new UrlAnalyticsDto
+        {
+            Code = shortenedUrl.Code,
+            OriginalUrl = shortenedUrl.OriginalUrl,
+            CreatedAt = shortenedUrl.CreatedAt,
+            ExpirationDate = shortenedUrl.ExpirationDate,
+            ClickCount = shortenedUrl.ClickCount,
+            IsActive = shortenedUrl.IsActive,
+            ClicksByDay = shortenedUrl.ClickEvents
+                .GroupBy(c => c.Timestamp.Date)
+                .Select(g => new ClickEventDto { TimeStamp = g.Key, Count = g.Count() } )
+                .OrderBy(x => x.TimeStamp)
+                .ToList(),
+            TopReferrers = shortenedUrl.ClickEvents
+                .Where(c => !string.IsNullOrEmpty(c.Referrer) )
+                .GroupBy(c => c.Referrer)
+                .Select(g => new ClickEventDto { Referrer = g.Key, Count = g.Count() })
+                .OrderByDescending(x => x.Count)
+                .Take(5)
+                .ToList(),
+            BrowserStats = shortenedUrl.ClickEvents
+                .Where(c => !string.IsNullOrEmpty(c.UserAgent))
+                .GroupBy(c => GetBrowserName(c.UserAgent))
+                .Select(g => new ClickEventDto { Browser = g.Key, Count = g.Count() })
+                .OrderByDescending(x => x.Count)
+                .ToList(),
+            RecentClicks = shortenedUrl.ClickEvents
+                .OrderByDescending(c => c.Timestamp)
+                .Take(10)
+                .Select(c => new ClickEventDto
+                {
+                    TimeStamp = c.Timestamp,
+                    UserAgent = c.UserAgent,
+                    Referrer = c.Referrer,
+                    IpAddress = MaskIpAddress(c.IpAddress)
+                })
+                .ToList()
+        };
+
+
+        return Ok(urlAnalyticsDto);
+    }
+
+    private string GetBrowserName(string? userAgent)
+    {
+        if (string.IsNullOrEmpty(userAgent)) return "Unknown";
+        
+        if (userAgent.Contains("Chrome")) return "Chrome";
+        if (userAgent.Contains("Firefox")) return "Firefox";
+        if (userAgent.Contains("Safari") && !userAgent.Contains("Chrome")) return "Safari";
+        if (userAgent.Contains("Edge")) return "Edge";
+        if (userAgent.Contains("MSIE") || userAgent.Contains("Trident")) return "Internet Explorer";
+        
+        return "Other";
+    }
+    
+    private string MaskIpAddress(string? ipAddress)
+    {
+        if (string.IsNullOrEmpty(ipAddress)) return "Unknown";
+        
+        // Simple masking for privacy - show only first part of IP
+        var parts = ipAddress.Split('.');
+        if (parts.Length == 4) // IPv4
+        {
+            return $"{parts[0]}.{parts[1]}.*.*";
+        }
+        
+        return "Masked IP";
     }
 
 }

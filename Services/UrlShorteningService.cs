@@ -141,30 +141,73 @@ public class UrlShorteningService
     public async Task<ShortenedUrl?> GetShortenedUrlAnalyticsByCodeAsync(string code)
     {
         var url = await _dbContext.ShortenedUrls
-            .FirstOrDefaultAsync(s => s.Code == code && s.IsActive && (s.ExpirationDate == null || s.ExpirationDate > DateTime.UtcNow));
-
+            .Include(s => s.ClickEvents)
+            .FirstOrDefaultAsync(s => s.Code == code);
+    
         if (url != null && (!url.IsActive || (url.ExpirationDate.HasValue && url.ExpirationDate <= DateTime.UtcNow)))
         {
-            //update the URL to inactive if it has expired
             url.IsActive = false;
             Console.WriteLine($"URL with code {code} is inactive or expired.");
             await _dbContext.SaveChangesAsync();
-            // URL is inactive or expired
+        }
+    
+        if (url != null && (url.ClickCount > ShortLinkSettings.MaxClickCount))
+        {
+            url.IsActive = false;
+            Console.WriteLine($"URL with code {code} has exceeded the maximum click count.");
+            await _dbContext.SaveChangesAsync();
+        }
+    
+        return url;
+    }
+
+    public async Task<ShortenedUrl?> TrackClickAndGetUrlAsync(string code, string? userAgent, string? ipAddress, string? referrer)
+    {
+        var url = await _dbContext.ShortenedUrls
+            .Include(s => s.ClickEvents)
+            .FirstOrDefaultAsync(s => s.Code == code && s.IsActive && (s.ExpirationDate == null || s.ExpirationDate > DateTime.UtcNow));
+
+        if (url == null)
+        {
+            Console.WriteLine($"No active URL found for code: {code}");
+            throw new InvalidOperationException("No active URL found for the provided code.");
+        }
+
+        // Track the click
+        url.ClickCount++;
+
+        // Add click event details
+        url.ClickEvents.Add(new ClickEvent
+        {
+            Timestamp = DateTime.UtcNow,
+            UserAgent = userAgent,
+            IpAddress = ipAddress,
+            Referrer = referrer,
+            ShortenedUrlId = url.Id
+        });
+
+        // Check if the URL is inactive or expired
+        if (!url.IsActive || (url.ExpirationDate.HasValue && url.ExpirationDate <= DateTime.UtcNow))
+        {
+            url.IsActive = false;
+            Console.WriteLine($"URL with code {code} is inactive or expired.");
+            await _dbContext.SaveChangesAsync();
+            throw new InvalidOperationException("This URL is inactive or has expired.");
         }
 
         // Check if the URL has exceeded the maximum click count
-        if (url != null && (url.ClickCount > ShortLinkSettings.MaxClickCount))
+        if (url.ClickCount > ShortLinkSettings.MaxClickCount)
         {
-            url.IsActive = false; // Deactivate the URL if it exceeds the maximum click count
+            url.IsActive = false;
             Console.WriteLine($"URL with code {code} has exceeded the maximum click count.");
             await _dbContext.SaveChangesAsync();
-            // URL is inactive due to exceeding click count
+            throw new InvalidOperationException("This URL has exceeded the maximum click count and is no longer active.");
         }
 
-
-
+        await _dbContext.SaveChangesAsync();
         return url;
     }
+
     
     public async Task<IEnumerable<ShortenedUrl>> GetAllShortenedUrlsAsync()
     {
