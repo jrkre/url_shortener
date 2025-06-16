@@ -4,7 +4,7 @@ services:
     image: mariadb:latest
     restart: always
     environment:
-      MARIADB_ROOT_PASSWORD: mariadb!2144845
+      MARIADB_ROOT_PASSWORD: mariadb123
       MARIADB_DATABASE: urlshortenerdb
       MARIADB_USER: user
       MARIADB_PASSWORD: password_for_url_shortener
