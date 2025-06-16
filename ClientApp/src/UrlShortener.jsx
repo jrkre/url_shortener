@@ -95,16 +95,16 @@ export default function UrlShortener({ onShorten }) {
           {loading ? 'Shortening...' : 'Shorten URL'}
         </button>
 
-        {shortUrl && (
+        {requestCode && (
           <div className="mt-4 text-center">
             <p className="text-gray-600 dark:text-gray-300">Your shortened URL:</p>
             <a
-              href={shortUrl}
+              href={`/l/${requestCode}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-blue-600 dark:text-blue-400 hover:underline break-all"
             >
-              {shortUrl}
+              {window.location.origin}/l/{requestCode}
             </a>
           </div>
         )}

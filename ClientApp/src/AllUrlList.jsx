@@ -36,8 +36,8 @@ export default function AllUrlList() {
       </p>
       <p className="text-sm text-gray-600 dark:text-gray-400">
         <span className="font-medium text-gray-900 dark:text-white">Shortened URL:</span><br />
-        <a href={`${item.shortUrl}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline break-words">
-          {item.shortUrl}
+        <a href={`/l/${item.code}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline break-words">
+          {window.location.origin}/l/{item.code}
         </a>
       </p>
     </div>
