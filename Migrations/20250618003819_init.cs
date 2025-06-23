@@ -7,17 +7,12 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace url_shortener.Migrations
 {
     /// <inheritdoc />
-    public partial class AddIdentityAndUserToUrls : Migration
+    public partial class init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "UserId",
-                table: "ShortenedUrls",
-                type: "varchar(255)",
-                nullable: false,
-                defaultValue: "")
+            migrationBuilder.AlterDatabase()
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
@@ -44,6 +39,8 @@ namespace url_shortener.Migrations
                 columns: table => new
                 {
                     Id = table.Column<string>(type: "varchar(255)", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    FullName = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     UserName = table.Column<string>(type: "varchar(256)", maxLength: 256, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -201,10 +198,35 @@ namespace url_shortener.Migrations
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_ShortenedUrls_UserId",
-                table: "ShortenedUrls",
-                column: "UserId");
+            migrationBuilder.CreateTable(
+                name: "ShortenedUrls",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    OriginalUrl = table.Column<string>(type: "varchar(2048)", maxLength: 2048, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ShortUrl = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Code = table.Column<string>(type: "varchar(10)", maxLength: 10, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    ExpirationDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    ClickCount = table.Column<int>(type: "int", nullable: false),
+                    UserId = table.Column<string>(type: "varchar(255)", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ShortenedUrls", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ShortenedUrls_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
@@ -243,22 +265,21 @@ namespace url_shortener.Migrations
                 column: "NormalizedUserName",
                 unique: true);
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_ShortenedUrls_AspNetUsers_UserId",
+            migrationBuilder.CreateIndex(
+                name: "IX_ShortenedUrls_Code",
                 table: "ShortenedUrls",
-                column: "UserId",
-                principalTable: "AspNetUsers",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                column: "Code",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ShortenedUrls_UserId",
+                table: "ShortenedUrls",
+                column: "UserId");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_ShortenedUrls_AspNetUsers_UserId",
-                table: "ShortenedUrls");
-
             migrationBuilder.DropTable(
                 name: "AspNetRoleClaims");
 
@@ -275,18 +296,13 @@ namespace url_shortener.Migrations
                 name: "AspNetUserTokens");
 
             migrationBuilder.DropTable(
+                name: "ShortenedUrls");
+
+            migrationBuilder.DropTable(
                 name: "AspNetRoles");
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers");
-
-            migrationBuilder.DropIndex(
-                name: "IX_ShortenedUrls_UserId",
-                table: "ShortenedUrls");
-
-            migrationBuilder.DropColumn(
-                name: "UserId",
-                table: "ShortenedUrls");
         }
     }
 }

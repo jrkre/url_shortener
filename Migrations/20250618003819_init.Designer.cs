@@ -12,15 +12,15 @@ using url_shortener.Data;
 namespace url_shortener.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250604000019_AddIdentityAndUserToUrls")]
-    partial class AddIdentityAndUserToUrls
+    [Migration("20250618003819_init")]
+    partial class init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.5")
+                .HasAnnotation("ProductVersion", "8.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
@@ -176,6 +176,10 @@ namespace url_shortener.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("tinyint(1)");
 
@@ -255,7 +259,6 @@ namespace url_shortener.Migrations
                         .HasColumnType("varchar(255)");
 
                     b.Property<string>("UserId")
-                        .IsRequired()
                         .HasColumnType("varchar(255)");
 
                     b.HasKey("Id");
@@ -324,8 +327,7 @@ namespace url_shortener.Migrations
                     b.HasOne("url_shortener.Models.ApplicationUser", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("User");
                 });
