@@ -63,6 +63,7 @@ Setup:
     ```bash
     docker compose up
     ```
+
 6. Access the app:
     Open your web browser and go to `http://localhost:5000` (or the port you configured in docker-compose.yml).
 
