@@ -4,6 +4,8 @@ using url_shortener.Services;
 using url_shortener.DTO;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using System.Security.Claims;
+using System.Diagnostics;
 
 
 namespace url_shortener.Controllers;
@@ -25,49 +27,52 @@ public class UrlController : ControllerBase
 
 
     [HttpPost("create")]
-    [Authorize]
+    [Authorize(Roles = "User,Admin")] // Only authenticated users can create shortened URLs
     public async Task<ActionResult<ShortenedUrl>> CreateShortenedUrl([FromBody] CreateShortenedUrlDto shortenedUrl)
     {
-        var user = await _userManager.GetUserAsync(User);
-        if (user == null) return Unauthorized();
-
         if (shortenedUrl == null || string.IsNullOrWhiteSpace(shortenedUrl.OriginalUrl))
         {
             return BadRequest("Invalid URL data.");
         }
 
-        var createdUrl = _urlService.CreateShortenedUrlAsync(shortenedUrl, user.Id).Result;
+        Console.WriteLine($"Received URL to shorten: {shortenedUrl.OriginalUrl} from User: {User.Identity?.Name}");
 
-        Console.WriteLine($"Created URL: {createdUrl.ShortUrl} for Original URL: {createdUrl.OriginalUrl}");
+        try
+        {
+            // Get the current user ID from the JWT token
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            Debug.WriteLine($"User ID from token: {userId}, Token: {ClaimTypes.NameIdentifier}");
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized("User ID not found in token.");
+            }
 
-        return CreatedAtAction(nameof(CreateShortenedUrl), new { code = createdUrl.Code }, createdUrl);
+            var createdUrl = await _urlService.CreateShortenedUrlAsync(shortenedUrl, userId);
+            Debug.WriteLine($"Created URL: {createdUrl.ShortUrl} for Original URL: {createdUrl.OriginalUrl}");
+            return CreatedAtAction(nameof(CreateShortenedUrl), new { code = createdUrl.Code }, createdUrl);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating shortened URL: {ex.Message}");
+            return StatusCode(500, "An error occurred while creating the shortened URL.");
+        }
     }
 
-    /*[HttpGet("{code}")]
-    public async Task<ActionResult<ShortenedUrl>> GetShortenedUrl(string code)
-    {
-        Console.WriteLine($"Received code: {code}");
-        if (string.IsNullOrWhiteSpace(code))
-        {
-            return BadRequest("Code cannot be null or empty.");
-        }
-
-        var shortenedUrl = await _urlService.GetShortenedUrlByCodeAsync(code);
-        if (shortenedUrl == null)
-        {
-            return NotFound("Shortened URL not found.");
-        }
-
-        return Redirect(shortenedUrl.OriginalUrl);
-    }*/
-
     [HttpGet]
+    [Authorize]
     public async Task<ActionResult<IEnumerable<ShortenedUrl>>> GetAllShortenedUrls()
     {
-        var shortenedUrls = await _urlService.GetAllShortenedUrlsAsync();
+        // Get URLs for the current user only
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var shortenedUrls = await _urlService.GetAllShortenedUrlsAsync(userId);
+
         if (shortenedUrls == null || !shortenedUrls.Any())
         {
-            return NotFound("No shortened URLs found.");
+            return Ok(new List<ShortenedUrl>()); // Return empty list instead of NotFound
         }
 
         return Ok(shortenedUrls);
@@ -75,6 +80,7 @@ public class UrlController : ControllerBase
 
 
     [HttpGet("analytics/{code}")]
+    [Authorize]
     public async Task<ActionResult<ShortenedUrl>> GetAnalytics(string code)
     {
         if (string.IsNullOrWhiteSpace(code))

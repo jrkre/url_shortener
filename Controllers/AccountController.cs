@@ -45,10 +45,11 @@ public class AccountController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginDto model)
     {
-        var result = await _signInManager.PasswordSignInAsync(model.Email, model.Password, false, false);
+        var result = await _signInManager.PasswordSignInAsync(model.Username, model.Password, false, false);
+        Console.WriteLine($"Login attempt for {model.Username}: {result.Succeeded}, {result.ToString()}");
         if (!result.Succeeded) return Unauthorized(new { Message = "Invalid login attempt." });
 
-        var user = await _userManager.FindByEmailAsync(model.Email);
+        var user = await _userManager.FindByNameAsync(model.Username);
 
         if (user == null) return NotFound(new { Message = "User not found." });
 
@@ -63,7 +64,8 @@ public class AccountController : ControllerBase
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Email ?? string.Empty),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new Claim(ClaimTypes.NameIdentifier, user.Id)
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Role, "User") // Default role, can be extended
         };
 
         var jwtKey = _configuration["Jwt:Key"];

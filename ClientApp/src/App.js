@@ -3,6 +3,11 @@ import { Route, Routes } from 'react-router-dom';
 import UrlShortener from './UrlShortener';
 import AllUrlList from './AllUrlList';
 import AnalyticsPage from './AnalyticsPage';
+import LoginPage from './LoginPage';
+import RegisterPage from './RegisterPage';
+import PrivateRoute from './PrivateRoute';
+import Navbar from './Navbar';
+import UserDashboard from './UserDashboard';
 
 function App() {
   const [shortenedUrls, setShortenedUrls] = useState([]);
@@ -24,6 +29,7 @@ function App() {
   return (
     
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors text-gray-900 dark:text-white">
+      <Navbar />
       <div className="flex justify-between items-center p-4 max-w-md mx-auto">
         <h1 className="text-xl font-bold">URL Shortener</h1>
         <button
@@ -36,8 +42,11 @@ function App() {
       <Routes>
         {/* other routes */}
         <Route path="/" element={<UrlShortener onShorten={handleShorten} /> } />
-        <Route path="/urls" element={<AllUrlList  />} />
-        <Route path="/analytics/:redirectCode" element={<AnalyticsPage />} />
+        <Route path="/urls" element={<PrivateRoute><AllUrlList  /></PrivateRoute>} />
+        <Route path="/analytics/:redirectCode" element={<PrivateRoute><AnalyticsPage /></PrivateRoute>} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/dashboard" element={<PrivateRoute><UserDashboard /></PrivateRoute>} />
       </Routes>
 
       

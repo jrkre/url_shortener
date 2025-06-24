@@ -15,6 +15,76 @@ export default function UrlShortener({ onShorten }) {
   });
   const [shortUrl, setShortUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  const token = localStorage.getItem('token');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [codeSuggestions, setCodeSuggestions] = useState([]);
+
+  // Generate code suggestions based on the URL
+  const generateCodeSuggestions = () => {
+    const suggestions = [];
+    
+    if (url) {
+      try {
+        const urlObj = new URL(url);
+        const domain = urlObj.hostname.replace('www.', '');
+        const path = urlObj.pathname;
+        
+        // Domain-based suggestions
+        const domainParts = domain.split('.');
+        if (domainParts.length > 0) {
+          const mainDomain = domainParts[0];
+          suggestions.push(mainDomain.substring(0, 6).toLowerCase());
+          if (mainDomain.length > 3) {
+            suggestions.push(mainDomain.substring(0, 3).toLowerCase() + Math.floor(Math.random() * 100));
+          }
+        }
+        
+        // Path-based suggestions
+        if (path && path !== '/') {
+          const pathParts = path.split('/').filter(p => p);
+          if (pathParts.length > 0) {
+            const firstPath = pathParts[0].replace(/[^a-zA-Z0-9]/g, '');
+            if (firstPath) {
+              suggestions.push(firstPath.substring(0, 6).toLowerCase());
+            }
+          }
+        }
+      } catch (e) {
+        // If URL parsing fails, generate generic suggestions
+      }
+    }
+    
+    // Add some random suggestions
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    for (let i = 0; i < 3; i++) {
+      let randomCode = '';
+      for (let j = 0; j < 6; j++) {
+        randomCode += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      suggestions.push(randomCode);
+    }
+    
+    // Remove duplicates and limit to 5 suggestions
+    return [...new Set(suggestions)].slice(0, 5);
+  };
+
+  const handleCodeInputFocus = () => {
+    const suggestions = generateCodeSuggestions();
+    setCodeSuggestions(suggestions);
+    setShowSuggestions(true);
+  };
+
+  const handleCodeInputBlur = () => {
+    // Delay hiding suggestions to allow clicking on them
+    setTimeout(() => setShowSuggestions(false), 200);
+  };
+
+  const selectSuggestion = (suggestion) => {
+    setRequestCode(suggestion);
+    setShowSuggestions(false);
+  };
+
+  console.log("TOKEN", token);
 
   const shortenUrl = async () => {
     if (!url) return;
@@ -23,14 +93,23 @@ export default function UrlShortener({ onShorten }) {
     try {
       const response = await fetch('/api/url/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // Assuming you store JWT in localStorage
+        },
         body: JSON.stringify({ 
           originalUrl: url, 
           requestedCode: requestCode, 
           expirationDate: expirationDate.toISOString()
         }),
       });
+      
       const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to shorten URL');
+      }
+      
       setShortUrl(data.shortUrl);
       setShortenedUrls(prev => [data, ...prev]);
       onShorten(data)
@@ -60,14 +139,35 @@ export default function UrlShortener({ onShorten }) {
         <label htmlFor="requested-code" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
           Request a code <span className="text-sm text-gray-500">(optional)</span>
         </label>
-        <input
-          type="text"
-          placeholder="Request a code (optional)"
-          maxLength={7}
-          value={requestCode}
-          onChange={(e) => setRequestCode(e.target.value)}
-          className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Request a code (optional)"
+            maxLength={7}
+            value={requestCode}
+            onChange={(e) => setRequestCode(e.target.value)}
+            onFocus={handleCodeInputFocus}
+            onBlur={handleCodeInputBlur}
+            className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {showSuggestions && codeSuggestions.length > 0 && (
+            <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+              <div className="p-2 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-600">
+                Suggested codes:
+              </div>
+              {codeSuggestions.map((suggestion, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => selectSuggestion(suggestion)}
+                  className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-900 dark:text-white transition-colors"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <label htmlFor="expiration-date" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
           Expiration Date <span className="text-sm text-gray-500">(default is 30 days)</span>
         </label>

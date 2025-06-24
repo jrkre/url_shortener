@@ -36,7 +36,6 @@ var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationExcep
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
 .AddJwtBearer(options =>
 {
@@ -45,10 +44,33 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuer = true,
         ValidateAudience = true,
         ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
         ValidIssuer = builder.Configuration["Jwt:Issuer"],
         ValidAudience = builder.Configuration["Jwt:Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+    };
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+            if (authHeader?.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ?? false)
+            {
+                var token = authHeader.Substring("Bearer ".Length).Trim();
+                Console.WriteLine($"Token extracted: {token}");
+                context.Token = token;
+            }
+            return Task.CompletedTask;
+        },
+        OnAuthenticationFailed = context =>
+        {
+            Console.WriteLine($"Authentication failed: {context.Exception.Message}");
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = context =>
+        {
+            Console.WriteLine($"Token validated for user: {context.Principal?.Identity?.Name}");
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -86,6 +108,7 @@ else
 
 builder.Services.AddScoped<url_shortener.Services.UrlShorteningService>();
 
+
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(@"/var/dpkeys"))
     .SetApplicationName("url_shortener");
@@ -110,11 +133,17 @@ if (!app.Environment.IsDevelopment())
 app.Use(async (context, next) =>
 {
     Console.WriteLine($"Request: {context.Request.Method} {context.Request.Path}");
+    var authHeader = context.Request.Headers["Authorization"].ToString();
+    Console.WriteLine($"Authorization Header: {authHeader}");
     await next.Invoke();
 });
 
 // app.UseHttpsRedirection();
+
+app.UseAuthentication();
 app.UseRouting();
+app.UseAuthorization();
+
 app.MapControllers();
 // app.UseDefaultFiles();
 
