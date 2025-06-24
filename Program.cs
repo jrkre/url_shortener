@@ -3,7 +3,7 @@ using Microsoft.Extensions.FileProviders;
 using url_shortener.Data;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using Microsoft.EntityFrameworkCore;
-using Pomelo.EntityFrameworkCore.MySql.Internal;
+using Pomelo.EntityFrameworkCore.MySql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,7 +15,28 @@ builder.Configuration.SetBasePath(Directory.GetCurrentDirectory())
     .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
     .AddEnvironmentVariables();
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var environment = builder.Environment.EnvironmentName;
+var connectionStringName = environment == "Development" ? "DevelopmentConnection" : "ProductionConnection";
+var connectionString = builder.Configuration.GetConnectionString(connectionStringName);
+
+// Configure DbContext with appropriate database provider
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+{
+    if (environment == "Development")
+    {
+        options.UseSqlite(connectionString);
+    }
+    else
+    {
+        options.UseMySql(connectionString,
+            new MySqlServerVersion(new Version(11, 7, 2)),
+            mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null
+            ));
+    }
+});
 
 //grab login information from environment variables if available
 

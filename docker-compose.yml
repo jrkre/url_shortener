@@ -5,7 +5,7 @@ services:
     restart: always
     environment:
       MARIADB_ROOT_PASSWORD: mariadb123
-      MARIADB_DATABASE: urlshortenerdb
+      MARIADB_DATABASE: urlshortenerdb_analyitics
       MARIADB_USER: user
       MARIADB_PASSWORD: password_for_url_shortener
     ports:
@@ -43,7 +43,6 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_HTTPS_PORT=2443
-      - ConnectionStrings__DefaultConnection=server=mariadb-prod;database=urlshortenerdb;user=user;password=password_for_url_shortener;
     restart: always
     volumes:
       - dpkeys:/var/dpkeys
@@ -51,7 +50,7 @@ services:
       - url-shortener-network
 
 
-networks:
+networks: 
   url-shortener-network:
     driver: bridge
 
