@@ -38,6 +38,25 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     }
 });
 
+// Add DbContextFactory for concurrent operations
+builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
+{
+    if (environment == "Development")
+    {
+        options.UseSqlite(connectionString);
+    }
+    else
+    {
+        options.UseMySql(connectionString,
+            new MySqlServerVersion(new Version(11, 7, 2)),
+            mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null
+            ));
+    }
+});
+
 //grab login information from environment variables if available
 
 // var dbUser = Environment.GetEnvironmentVariable("DB_USER");
@@ -47,16 +66,6 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // {
 //     connectionString += $"user={dbUser};password={dbPassword};";
 // }
-
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseMySql(connectionString,
-        new MySqlServerVersion(new Version(11, 7, 2)),
-        mySqlOptions => mySqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 5,
-            maxRetryDelay: TimeSpan.FromSeconds(30),
-            errorNumbersToAdd: null
-        ) // Adjust the version as needed
-    ));
 
 
 builder.Services.AddScoped<url_shortener.Services.UrlShorteningService>();

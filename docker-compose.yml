@@ -5,7 +5,7 @@ services:
     restart: always
     environment:
       MARIADB_ROOT_PASSWORD: mariadb123
-      MARIADB_DATABASE: urlshortenerdb_analyitics
+      MARIADB_DATABASE: urlshortenerdb_analytics
       MARIADB_USER: user
       MARIADB_PASSWORD: password_for_url_shortener
     ports:

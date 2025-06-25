@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using url_shortener.Models;
 using url_shortener.Services;
 using url_shortener.DTO;
+using System.Threading.Tasks;
 
 
 namespace url_shortener.Controllers;
@@ -73,6 +74,21 @@ public class UrlController : ControllerBase
 
         return Ok(shortenedUrls);
     }
+
+    [HttpPost("suggest-codes")]
+    public async Task<ActionResult> GetSuggestedCodes([FromBody] CreateShortenedUrlDto shortenedUrl, [FromQuery] int count = 5)
+    {
+        if (count <= 0 || count > 20)
+        {
+            return BadRequest("Count must be between 1 and 20.");
+        }
+
+        var suggestedCodes = await UrlShorteningService.GenerateSuggestedCodes(count, shortenedUrl);
+
+        return Ok(suggestedCodes);
+    }
+    
+
 
 
     [HttpGet("analytics/{code}")]
