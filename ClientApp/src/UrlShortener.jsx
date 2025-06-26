@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import SessionUrlList from './SessionUrlList'; 
+import SessionUrlList from './SessionUrlList';
+import CsvUpload from './CsvUpload';
 
 
 export default function UrlShortener({ onShorten }) {
   const [url, setUrl] = useState('');
   const [requestCode, setRequestCode] = useState('');
   const [shortenedUrls, setShortenedUrls] = useState([]);
+  const [showCsvUpload, setShowCsvUpload] = useState(false);
   const [expirationDate, setExpirationDate] = useState(() => {
     const today = new Date();
     today.setDate(today.getDate() + 30); // Default to 30 days from today
@@ -92,7 +94,7 @@ export default function UrlShortener({ onShorten }) {
         setCodeSuggestions([]);
         setShowSuggestions(false);
       }
-    }, 800); // 800ms debounce
+    }, 1000); // 1000ms debounce
   };
 
   const handleKeyDown = (e) => {
@@ -116,54 +118,10 @@ export default function UrlShortener({ onShorten }) {
     }
   };
 
-  // Generate code suggestions based on the URL
-  // const generateCodeSuggestions = () => {
-  //   const suggestions = [];
-    
-  //   if (url) {
-  //     try {
-  //       const urlObj = new URL(url);
-  //       const domain = urlObj.hostname.replace('www.', '');
-  //       const path = urlObj.pathname;
-        
-  //       // Domain-based suggestions
-  //       const domainParts = domain.split('.');
-  //       if (domainParts.length > 0) {
-  //         const mainDomain = domainParts[0];
-  //         suggestions.push(mainDomain.substring(0, 6).toLowerCase());
-  //         if (mainDomain.length > 3) {
-  //           suggestions.push(mainDomain.substring(0, 3).toLowerCase() + Math.floor(Math.random() * 100));
-  //         }
-  //       }
-        
-  //       // Path-based suggestions
-  //       if (path && path !== '/') {
-  //         const pathParts = path.split('/').filter(p => p);
-  //         if (pathParts.length > 0) {
-  //           const firstPath = pathParts[0].replace(/[^a-zA-Z0-9]/g, '');
-  //           if (firstPath) {
-  //             suggestions.push(firstPath.substring(0, 6).toLowerCase());
-  //           }
-  //         }
-  //       }
-  //     } catch (e) {
-  //       // If URL parsing fails, generate generic suggestions
-  //     }
-  //   }
-    
-  //   // Add some random suggestions
-  //   const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  //   for (let i = 0; i < 3; i++) {
-  //     let randomCode = '';
-  //     for (let j = 0; j < 6; j++) {
-  //       randomCode += chars.charAt(Math.floor(Math.random() * chars.length));
-  //     }
-  //     suggestions.push(randomCode);
-  //   }
-    
-  //   // Remove duplicates and limit to 5 suggestions
-  //   return [...new Set(suggestions)].slice(0, 5);
-  // };
+  const handleCsvUploadComplete = (uploadedUrls) => {
+    setShortenedUrls(prev => [...uploadedUrls, ...prev]);
+    uploadedUrls.forEach(url => onShorten(url));
+  };
 
   const handleCodeInputFocus = () => {
     // Only fetch suggestions from the server
@@ -186,89 +144,121 @@ export default function UrlShortener({ onShorten }) {
         <h1 className="text-2xl font-bold text-center text-gray-900 dark:text-white">
           URL Shortener
         </h1>
-        <label htmlFor="url" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-          URL to shorten <span className="text-sm text-gray-500">(Required)</span>
-        </label>
-        <input
-          type="text"
-          placeholder="Paste your URL here..."
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <label htmlFor="requested-code" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-          Request a code <span className="text-sm text-gray-500">(optional)</span>
-        </label>
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Request a code (optional)"
-            maxLength={7}
-            value={requestCode}
-            onChange={handleChange}
-            onFocus={handleCodeInputFocus}
-            onBlur={handleCodeInputBlur}
-            onKeyDown={handleKeyDown}
-            className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          {showSuggestions && codeSuggestions.length > 0 && (
-            <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-              <div className="p-2 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-600">
-                Suggested codes:
+        {/* Toggle between single URL and CSV upload */}
+        <div className="flex space-x-2 mb-4">
+          <button
+            onClick={() => setShowCsvUpload(false)}
+            className={`px-4 py-2 rounded text-sm font-medium transition ${
+              !showCsvUpload 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+            }`}
+          >
+            Single URL
+          </button>
+          <button
+            onClick={() => setShowCsvUpload(true)}
+            className={`px-4 py-2 rounded text-sm font-medium transition ${
+              showCsvUpload 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+            }`}
+          >
+            Bulk Upload
+          </button>
+        </div>
+
+        {!showCsvUpload ? (
+          <>
+            {/* ... rest of existing single URL form ... */}
+            < label htmlFor="url" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                URL to shorten <span className="text-sm text-gray-500">(Required)</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Paste your URL here..."
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <label htmlFor="requested-code" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                Request a code <span className="text-sm text-gray-500">(optional)</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Request a code (optional)"
+                  maxLength={7}
+                  value={requestCode}
+                  onChange={handleChange}
+                  onFocus={handleCodeInputFocus}
+                  onBlur={handleCodeInputBlur}
+                  onKeyDown={handleKeyDown}
+                  className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {showSuggestions && codeSuggestions.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    <div className="p-2 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-600">
+                      Suggested codes:
+                    </div>
+                    {codeSuggestions.map((suggestion, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => selectSuggestion(suggestion)}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-900 dark:text-white transition-colors"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-              {codeSuggestions.map((suggestion, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() => selectSuggestion(suggestion)}
-                  className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-900 dark:text-white transition-colors"
-                >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        <label htmlFor="expiration-date" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-          Expiration Date <span className="text-sm text-gray-500">(default is 30 days)</span>
-        </label>
-        <div className="mb-2">
-          <DatePicker
-          selected={expirationDate}
-          onChange={(date) => setExpirationDate(date)}
-          minDate={new Date().setDate(new Date().getDate() + 1)} // Minimum date is tomorrow
-          maxDate={new Date(new Date().setDate(new Date().getDate() + 365))}
-          className="block w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <span id="expiration-help" className="text-sm text-gray-500">
-          Please select a valid future date. (maximum 365 days from today)
-        </span>
-        {expirationDate && new Date(expirationDate) < new Date() && (
-          <p className="text-sm text-red-600 mt-1">Expiration date cannot be in the past.</p>
-        )}
+              <label htmlFor="expiration-date" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                Expiration Date <span className="text-sm text-gray-500">(default is 30 days)</span>
+              </label>
+              <div className="mb-2">
+                <DatePicker
+                selected={expirationDate}
+                onChange={(date) => setExpirationDate(date)}
+                minDate={new Date().setDate(new Date().getDate() + 1)} // Minimum date is tomorrow
+                maxDate={new Date(new Date().setDate(new Date().getDate() + 365))}
+                className="block w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <span id="expiration-help" className="text-sm text-gray-500">
+                Please select a valid future date. (maximum 365 days from today)
+              </span>
+              {expirationDate && new Date(expirationDate) < new Date() && (
+                <p className="text-sm text-red-600 mt-1">Expiration date cannot be in the past.</p>
+              )}
 
-        <button
-          onClick={shortenUrl}
-          disabled={loading}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition"
-        >
-          {loading ? 'Shortening...' : 'Shorten URL'}
-        </button>
-
-        {requestCode && (
-          <div className="mt-4 text-center">
-            <p className="text-gray-600 dark:text-gray-300">Your shortened URL:</p>
-            <a
-              href={`/l/${requestCode}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 dark:text-blue-400 hover:underline break-all"
-            >
-              {window.location.origin}/l/{requestCode}
-            </a>
-          </div>
+              <button
+                onClick={shortenUrl}
+                disabled={loading}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition"
+              >
+                {loading ? 'Shortening...' : 'Shorten URL'}
+              </button>
+            
+              {requestCode && (
+                <div className="mt-4 text-center">
+                  <p className="text-gray-600 dark:text-gray-300">Your shortened URL:</p>
+                  <a
+                    href={`/l/${requestCode}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 dark:text-blue-400 hover:underline break-all"
+                  >
+                    {window.location.origin}/l/{requestCode}
+                  </a>
+                </div>
+              )}
+          </>
+        ) : (
+          <CsvUpload onUploadComplete={handleCsvUploadComplete} />
         )}
+       
       </div>
       <SessionUrlList sessionUrls={shortenedUrls}/>
     </div>
