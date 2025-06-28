@@ -21,8 +21,85 @@ export default function UrlShortener({ onShorten }) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [codeSuggestions, setCodeSuggestions] = useState([]);
 
+  // Error handling states
+  const [error, setError] = useState('');
+  const [urlError, setUrlError] = useState('');
+  const [codeError, setCodeError] = useState('');
+  const [dateError, setDateError] = useState('');
+
+  // Validation functions
+  const validateUrl = (urlString) => {
+    if (!urlString.trim()) {
+      return 'URL is required';
+    }
+    
+    try {
+      const url = new URL(urlString);
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        return 'URL must start with http:// or https://';
+      }
+      return '';
+    } catch {
+      return 'Please enter a valid URL (e.g., https://example.com)';
+    }
+  };
+
+  const validateCode = (code) => {
+    if (code && !/^[a-zA-Z0-9]+$/.test(code)) {
+      return 'Code can only contain letters and numbers';
+    }
+    if (code && code.length > 7) {
+      return 'Code cannot be longer than 7 characters';
+    }
+    return '';
+  };
+
+  const validateDate = (date) => {
+    if (!date) {
+      return 'Expiration date is required';
+    }
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDate = new Date(date);
+    selectedDate.setHours(0, 0, 0, 0);
+    
+    if (selectedDate <= today) {
+      return 'Expiration date must be in the future';
+    }
+    
+    const maxDate = new Date();
+    maxDate.setDate(maxDate.getDate() + 365);
+    if (selectedDate > maxDate) {
+      return 'Expiration date cannot be more than 365 days from today';
+    }
+    
+    return '';
+  };
+
+  const clearErrors = () => {
+    setError('');
+    setUrlError('');
+    setCodeError('');
+    setDateError('');
+  };
+
   const shortenUrl = async () => {
-    if (!url) return;
+    clearErrors();
+    
+    // Validate inputs
+    const urlValidation = validateUrl(url);
+    const codeValidation = validateCode(requestCode);
+    const dateValidation = validateDate(expirationDate);
+    
+    if (urlValidation) setUrlError(urlValidation);
+    if (codeValidation) setCodeError(codeValidation);
+    if (dateValidation) setDateError(dateValidation);
+    
+    if (urlValidation || codeValidation || dateValidation) {
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -35,24 +112,72 @@ export default function UrlShortener({ onShorten }) {
           expirationDate: expirationDate.toISOString()
         }),
       });
+      
       const data = await response.json();
+      
+      if (!response.ok) {
+        // Handle specific API errors
+        if (response.status === 400) {
+          setError(data.message || data || 'Invalid request. Please check your inputs.');
+        } else if (response.status === 409) {
+          setCodeError('This code is already taken. Please try a different one.');
+        } else if (response.status >= 500) {
+          setError('Server error. Please try again later.');
+        } else {
+          setError(data.message || 'An unexpected error occurred.');
+        }
+        return;
+      }
+      
       setShortUrl(data.shortUrl);
       setShortenedUrls(prev => [data, ...prev]);
-      onShorten(data)
+      onShorten(data);
+      
+      // Clear form on success
+      setUrl('');
+      setRequestCode('');
+      const newDate = new Date();
+      newDate.setDate(newDate.getDate() + 30);
+      setExpirationDate(newDate);
+      
     } catch (err) {
       console.error('Error:', err);
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        setError('Network error. Please check your connection and try again.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  const handleUrlChange = (e) => {
+    const value = e.target.value;
+    setUrl(value);
+    if (urlError) {
+      setUrlError(validateUrl(value));
+    }
+  };
+
   const handleChange = (e) => {
     const value = e.target.value;
-    setRequestCode(value); // Actually update the state!
+    setRequestCode(value);
+    
+    if (codeError) {
+      setCodeError(validateCode(value));
+    }
     
     fetchSuggestions();
     setShowSuggestions(true);
-    setActiveIndex(-1); // Reset index
+    setActiveIndex(-1);
+  };
+
+  const handleDateChange = (date) => {
+    setExpirationDate(date);
+    if (dateError) {
+      setDateError(validateDate(date));
+    }
   };
 
 
@@ -60,7 +185,6 @@ export default function UrlShortener({ onShorten }) {
   let fetchSuggestionsTimeout = null;
 
   const fetchSuggestions = () => {
-
     if (!url && !requestCode) {
       setCodeSuggestions([]);
       setShowSuggestions(false);
@@ -90,11 +214,10 @@ export default function UrlShortener({ onShorten }) {
         setShowSuggestions(true);
       } catch (err) {
         console.error('Error fetching suggestions:', err);
-        // Clear suggestions on error and hide the dropdown
         setCodeSuggestions([]);
         setShowSuggestions(false);
       }
-    }, 1000); // 1000ms debounce
+    }, 800);
   };
 
   const handleKeyDown = (e) => {
@@ -144,121 +267,154 @@ export default function UrlShortener({ onShorten }) {
         <h1 className="text-2xl font-bold text-center text-gray-900 dark:text-white">
           URL Shortener
         </h1>
-        {/* Toggle between single URL and CSV upload */}
-        <div className="flex space-x-2 mb-4">
-          <button
-            onClick={() => setShowCsvUpload(false)}
-            className={`px-4 py-2 rounded text-sm font-medium transition ${
-              !showCsvUpload 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-            }`}
-          >
-            Single URL
-          </button>
-          <button
-            onClick={() => setShowCsvUpload(true)}
-            className={`px-4 py-2 rounded text-sm font-medium transition ${
-              showCsvUpload 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-            }`}
-          >
-            Bulk Upload
-          </button>
-        </div>
-
-        {!showCsvUpload ? (
-          <>
-            {/* ... rest of existing single URL form ... */}
-            < label htmlFor="url" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                URL to shorten <span className="text-sm text-gray-500">(Required)</span>
-              </label>
-              <input
-                type="text"
-                placeholder="Paste your URL here..."
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <label htmlFor="requested-code" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                Request a code <span className="text-sm text-gray-500">(optional)</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Request a code (optional)"
-                  maxLength={7}
-                  value={requestCode}
-                  onChange={handleChange}
-                  onFocus={handleCodeInputFocus}
-                  onBlur={handleCodeInputBlur}
-                  onKeyDown={handleKeyDown}
-                  className="w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                {showSuggestions && codeSuggestions.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                    <div className="p-2 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-600">
-                      Suggested codes:
-                    </div>
-                    {codeSuggestions.map((suggestion, index) => (
-                      <button
-                        key={index}
-                        type="button"
-                        onClick={() => selectSuggestion(suggestion)}
-                        className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-900 dark:text-white transition-colors"
-                      >
-                        {suggestion}
-                      </button>
-                    ))}
-                  </div>
-                )}
+        
+        {/* Global Error Message */}
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
               </div>
-              <label htmlFor="expiration-date" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                Expiration Date <span className="text-sm text-gray-500">(default is 30 days)</span>
-              </label>
-              <div className="mb-2">
-                <DatePicker
-                selected={expirationDate}
-                onChange={(date) => setExpirationDate(date)}
-                minDate={new Date().setDate(new Date().getDate() + 1)} // Minimum date is tomorrow
-                maxDate={new Date(new Date().setDate(new Date().getDate() + 365))}
-                className="block w-full p-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+              <div className="ml-3">
+                <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
               </div>
-              <span id="expiration-help" className="text-sm text-gray-500">
-                Please select a valid future date. (maximum 365 days from today)
-              </span>
-              {expirationDate && new Date(expirationDate) < new Date() && (
-                <p className="text-sm text-red-600 mt-1">Expiration date cannot be in the past.</p>
-              )}
-
-              <button
-                onClick={shortenUrl}
-                disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition"
-              >
-                {loading ? 'Shortening...' : 'Shorten URL'}
-              </button>
-            
-              {requestCode && (
-                <div className="mt-4 text-center">
-                  <p className="text-gray-600 dark:text-gray-300">Your shortened URL:</p>
-                  <a
-                    href={`/l/${requestCode}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 dark:text-blue-400 hover:underline break-all"
-                  >
-                    {window.location.origin}/l/{requestCode}
-                  </a>
-                </div>
-              )}
-          </>
-        ) : (
-          <CsvUpload onUploadComplete={handleCsvUploadComplete} />
+              <div className="ml-auto pl-3">
+                <button
+                  onClick={() => setError('')}
+                  className="text-red-400 hover:text-red-600 dark:hover:text-red-300"
+                >
+                  <span className="sr-only">Dismiss</span>
+                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
         )}
-       
+
+        <label htmlFor="url" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+          URL to shorten <span className="text-sm text-gray-500">(Required)</span>
+        </label>
+        <input
+          type="text"
+          placeholder="Paste your URL here..."
+          value={url}
+          onChange={handleUrlChange}
+          className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            urlError 
+              ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20' 
+              : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
+          } text-gray-900 dark:text-white`}
+        />
+        {urlError && (
+          <p className="text-sm text-red-600 dark:text-red-400 mt-1">{urlError}</p>
+        )}
+
+        <label htmlFor="requested-code" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+          Request a code <span className="text-sm text-gray-500">(optional)</span>
+        </label>
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Request a code (optional)"
+            maxLength={7}
+            value={requestCode}
+            onChange={handleChange}
+            onFocus={handleCodeInputFocus}
+            onBlur={handleCodeInputBlur}
+            onKeyDown={handleKeyDown}
+            className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              codeError 
+                ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20' 
+                : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
+            } text-gray-900 dark:text-white`}
+          />
+          {showSuggestions && codeSuggestions.length > 0 && (
+            <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+              <div className="p-2 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-600">
+                Suggested codes:
+              </div>
+              {codeSuggestions.map((suggestion, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => selectSuggestion(suggestion)}
+                  className={`w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-900 dark:text-white transition-colors ${
+                    index === activeIndex ? 'bg-gray-100 dark:bg-gray-600' : ''
+                  }`}
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {codeError && (
+          <p className="text-sm text-red-600 dark:text-red-400 mt-1">{codeError}</p>
+        )}
+
+        <label htmlFor="expiration-date" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+          Expiration Date <span className="text-sm text-gray-500">(default is 30 days)</span>
+        </label>
+        <div className="mb-2">
+          <DatePicker
+            selected={expirationDate}
+            onChange={handleDateChange}
+            minDate={new Date().setDate(new Date().getDate() + 1)}
+            maxDate={new Date(new Date().setDate(new Date().getDate() + 365))}
+            className={`block w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              dateError 
+                ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20' 
+                : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
+            } text-gray-900 dark:text-white`}
+          />
+        </div>
+        {dateError && (
+          <p className="text-sm text-red-600 dark:text-red-400 mt-1">{dateError}</p>
+        )}
+        <span id="expiration-help" className="text-sm text-gray-500">
+          Please select a valid future date. (maximum 365 days from today)
+        </span>
+
+        <button
+          onClick={shortenUrl}
+          disabled={loading}
+          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold py-2 rounded-lg transition"
+        >
+          {loading ? (
+            <span className="flex items-center justify-center">
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Shortening...
+            </span>
+          ) : 'Shorten URL'}
+        </button>
+
+        {shortUrl && (
+          <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+            <p className="text-gray-600 dark:text-gray-300 text-sm mb-2">✅ Your shortened URL:</p>
+            <a
+              href={shortUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 dark:text-blue-400 hover:underline break-all font-medium"
+            >
+              {shortUrl}
+            </a>
+            <button
+              onClick={() => navigator.clipboard.writeText(shortUrl)}
+              className="ml-2 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              title="Copy to clipboard"
+            >
+              📋
+            </button>
+          </div>
+        )}
       </div>
       <SessionUrlList sessionUrls={shortenedUrls}/>
     </div>
