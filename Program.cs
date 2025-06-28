@@ -8,7 +8,10 @@ using Microsoft.AspNetCore.Identity;
 using url_shortener.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using Newtonsoft.Json;
 using System.Text;
+using Microsoft.IdentityModel.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +39,7 @@ var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationExcep
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
 .AddJwtBearer(options =>
 {
@@ -44,31 +48,44 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuer = true,
         ValidateAudience = true,
         ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
         ValidIssuer = builder.Configuration["Jwt:Issuer"],
         ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+        ClockSkew = TimeSpan.Zero // Reduce clock skew to avoid timing issues
     };
     options.Events = new JwtBearerEvents
     {
         OnMessageReceived = context =>
         {
             var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
-            if (authHeader?.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ?? false)
+            if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
             {
                 var token = authHeader.Substring("Bearer ".Length).Trim();
-                Console.WriteLine($"Token extracted: {token}");
+                Console.WriteLine($"Token extracted: {token.Substring(0, Math.Min(20, token.Length))}...");
                 context.Token = token;
+            }
+            else
+            {
+                Console.WriteLine($"No valid Bearer token found in Authorization header: {authHeader}");
             }
             return Task.CompletedTask;
         },
         OnAuthenticationFailed = context =>
         {
+            IdentityModelEventSource.ShowPII = true;
             Console.WriteLine($"Authentication failed: {context.Exception.Message}");
+            Console.WriteLine($"Token: {context.Request.Headers["Authorization"].FirstOrDefault()}");
             return Task.CompletedTask;
         },
         OnTokenValidated = context =>
         {
             Console.WriteLine($"Token validated for user: {context.Principal?.Identity?.Name}");
+            return Task.CompletedTask;
+        },
+        OnChallenge = context =>
+        {
+            Console.WriteLine($"Authentication challenge: {context.Error}, {context.ErrorDescription}");
             return Task.CompletedTask;
         }
     };
@@ -85,6 +102,8 @@ else
 {
     connectionString = builder.Configuration.GetConnectionString("DevelopmentConnection");
 }
+
+Console.WriteLine($"Using connection string: {connectionString}");
 
 // Configure Entity Framework Core with MySQL if production, otherwise use SQLite
 if (builder.Environment.IsProduction())
@@ -140,8 +159,8 @@ app.Use(async (context, next) =>
 
 // app.UseHttpsRedirection();
 
-app.UseAuthentication();
 app.UseRouting();
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

@@ -91,11 +91,17 @@ export default function UrlShortener({ onShorten }) {
     setLoading(true);
 
     try {
+      const token = localStorage.getItem('token');
+
+      if (!token) {
+        throw new Error('No authentication token found. Please log in.');
+      }
+
       const response = await fetch('/api/url/create', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // Assuming you store JWT in localStorage
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ 
           originalUrl: url, 
@@ -103,18 +109,30 @@ export default function UrlShortener({ onShorten }) {
           expirationDate: expirationDate.toISOString()
         }),
       });
-      
-      const data = await response.json();
-      
+
+      // Check if response is ok before trying to parse JSON
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to shorten URL');
+        // Try to get error message from response
+        let errorMessage = 'Failed to shorten URL';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+          // If response isn't JSON, get text
+          // const errorText = await response.text();
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
-      
+
+      const data = await response.json();
+
       setShortUrl(data.shortUrl);
       setShortenedUrls(prev => [data, ...prev]);
-      onShorten(data)
+      onShorten(data);
     } catch (err) {
       console.error('Error:', err);
+      alert(`Error: ${err.message}`); // Show user-friendly error
     } finally {
       setLoading(false);
     }

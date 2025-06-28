@@ -62,10 +62,13 @@ public class AccountController : ControllerBase
     {
         var claims = new[]
         {
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Sub, user.Email ?? string.Empty),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Role, "User") // Default role, can be extended
+            new Claim(ClaimTypes.Role, "User"),
+            new Claim(ClaimTypes.Name, user.UserName ?? string.Empty)
+            // new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString())
+
         };
 
         var jwtKey = _configuration["Jwt:Key"];

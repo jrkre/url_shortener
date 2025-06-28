@@ -32,7 +32,7 @@ public class UrlController : ControllerBase
     {
         if (shortenedUrl == null || string.IsNullOrWhiteSpace(shortenedUrl.OriginalUrl))
         {
-            return BadRequest("Invalid URL data.");
+            return BadRequest(new { message = "Invalid URL data." });
         }
 
         Console.WriteLine($"Received URL to shorten: {shortenedUrl.OriginalUrl} from User: {User.Identity?.Name}");
@@ -41,10 +41,11 @@ public class UrlController : ControllerBase
         {
             // Get the current user ID from the JWT token
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            Debug.WriteLine($"User ID from token: {userId}, Token: {ClaimTypes.NameIdentifier}");
+            Console.WriteLine($"User ID from token: {userId}");
+
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized("User ID not found in token.");
+                return Unauthorized(new { message = "User ID not found in token." });
             }
 
             var createdUrl = await _urlService.CreateShortenedUrlAsync(shortenedUrl, userId);
@@ -53,12 +54,12 @@ public class UrlController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(ex.Message);
+            return BadRequest(new { message = ex.Message });
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error creating shortened URL: {ex.Message}");
-            return StatusCode(500, "An error occurred while creating the shortened URL.");
+            return StatusCode(500, new { message = "An error occurred while creating the shortened URL." });
         }
     }
 

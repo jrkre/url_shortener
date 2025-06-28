@@ -17,7 +17,17 @@ namespace url_shortener.Data
                 .Build();
 
             
-            var connectionString = config.GetConnectionString("DefaultConnection");
+            string? connectionString;
+
+            //if production, use productionconnection string with mysql, otherwise use development connection string and sqlite
+            if (config.GetValue<string>("ASPNETCORE_ENVIRONMENT") == "Production")
+            {
+                connectionString = config.GetConnectionString("ProductionConnection");
+            }
+            else
+            {
+                connectionString = config.GetConnectionString("DefaultConnection");
+            }
             if (string.IsNullOrEmpty(connectionString))
             {
                 throw new InvalidOperationException("Connection string 'DefaultConnection' not found in appsettings.json.");
