@@ -57,10 +57,7 @@ public class UrlShorteningService
             throw new ArgumentException($"Expiration date cannot be more than {ShortLinkSettings.MaxExpirationDays} days in the future.", nameof(shortenedUrlDto.ExpirationDate));
         }
 
-        if (string.IsNullOrWhiteSpace(userId))
-        {
-            throw new ArgumentException("User ID is required for creating shortened URLs.");
-        }
+        
 
 
         var shortenedUrl = new ShortenedUrl(originalUrl: shortenedUrlDto.OriginalUrl,

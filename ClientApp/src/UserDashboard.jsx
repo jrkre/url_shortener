@@ -9,9 +9,21 @@ export default function UserDashboard() {
 
   useEffect(() => {
     const fetchUserUrls = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('You must be logged in to view your URLs.');
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
-        const res = await fetch('/api/url/'); // Adjust backend endpoint if needed
+        const res = await fetch('/api/account/', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` // Ensure token is sent
+          }
+        }); // Adjust backend endpoint if needed
         if (!res.ok) throw new Error('Failed to load user URLs');
         const data = await res.json();
         setUserUrls(data);

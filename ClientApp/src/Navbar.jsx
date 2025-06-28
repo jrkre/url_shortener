@@ -35,10 +35,10 @@ export default function Navbar() {
           ) : (
             <>
               <Link
-                to="/dashboard"
+                to="/account"
                 className="text-green-600 dark:text-green-400 hover:underline"
               >
-                Dashboard
+                Account
               </Link>
               <button
                 onClick={handleLogout}

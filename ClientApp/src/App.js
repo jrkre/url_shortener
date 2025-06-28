@@ -46,7 +46,7 @@ function App() {
         <Route path="/analytics/:redirectCode" element={<PrivateRoute><AnalyticsPage /></PrivateRoute>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/dashboard" element={<PrivateRoute><UserDashboard /></PrivateRoute>} />
+        <Route path="/account" element={<PrivateRoute><UserDashboard /></PrivateRoute>} />
       </Routes>
 
       

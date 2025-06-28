@@ -6,6 +6,8 @@ using System.Security.Claims;
 using System.Text;
 using url_shortener.Models;
 using url_shortener.DTO;
+using Microsoft.AspNetCore.Authorization;
+using url_shortener.Services;
 
 namespace url_shortener.Controllers;
 
@@ -16,12 +18,14 @@ public class AccountController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly IConfiguration _configuration;
+    private readonly UrlShorteningService _urlService;
 
-    public AccountController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IConfiguration configuration)
+    public AccountController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IConfiguration configuration, UrlShorteningService urlShorteningService)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _configuration = configuration;
+        _urlService = urlShorteningService;
     }
 
     [HttpPost("register")]
@@ -57,6 +61,22 @@ public class AccountController : ControllerBase
 
         return Ok(new { Token = token });
     }
+    
+    [HttpGet]
+    [Authorize]
+    public async Task<ActionResult<IEnumerable<ShortenedUrl>>> GetAllShortenedUrls()
+    {
+        // Get URLs for the current user only
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var shortenedUrls = await _urlService.GetAllShortenedUrlsAsync(userId);
+
+        if (shortenedUrls == null || !shortenedUrls.Any())
+        {
+            return Ok(new List<ShortenedUrl>()); // Return empty list instead of NotFound
+        }
+
+        return Ok(shortenedUrls);
+    }
 
     private string GenerateJwtToken(ApplicationUser user)
     {
@@ -76,7 +96,7 @@ public class AccountController : ControllerBase
         {
             throw new InvalidOperationException("JWT key is not configured.");
         }
-        
+
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 

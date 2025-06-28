@@ -27,7 +27,6 @@ public class UrlController : ControllerBase
 
 
     [HttpPost("create")]
-    [Authorize(Roles = "User,Admin")] // Only authenticated users can create shortened URLs
     public async Task<ActionResult<ShortenedUrl>> CreateShortenedUrl([FromBody] CreateShortenedUrlDto shortenedUrl)
     {
         if (shortenedUrl == null || string.IsNullOrWhiteSpace(shortenedUrl.OriginalUrl))
@@ -63,21 +62,7 @@ public class UrlController : ControllerBase
         }
     }
 
-    [HttpGet]
-    [Authorize]
-    public async Task<ActionResult<IEnumerable<ShortenedUrl>>> GetAllShortenedUrls()
-    {
-        // Get URLs for the current user only
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var shortenedUrls = await _urlService.GetAllShortenedUrlsAsync(userId);
-
-        if (shortenedUrls == null || !shortenedUrls.Any())
-        {
-            return Ok(new List<ShortenedUrl>()); // Return empty list instead of NotFound
-        }
-
-        return Ok(shortenedUrls);
-    }
+    
 
 
     [HttpGet("analytics/{code}")]
