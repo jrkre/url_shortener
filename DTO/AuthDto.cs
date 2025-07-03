@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace url_shortener.DTO;
 
 public class RegisterDto
@@ -14,3 +16,13 @@ public class LoginDto
     public required string Username { get; set; }
     public required string Password { get; set; }
 }
+
+public class UpdateProfileDto
+    {
+        [StringLength(100)]
+        public string? FullName { get; set; }
+
+        [EmailAddress]
+        [StringLength(256)]
+        public string? Email { get; set; }
+    }

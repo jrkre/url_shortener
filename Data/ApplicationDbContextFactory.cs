@@ -22,11 +22,12 @@ namespace url_shortener.Data
             //if production, use productionconnection string with mysql, otherwise use development connection string and sqlite
             if (config.GetValue<string>("ASPNETCORE_ENVIRONMENT") == "Production")
             {
-                connectionString = config.GetConnectionString("ProductionConnection");
+                connectionString = config.GetConnectionString("DefaultConnection") ??
+                                   config.GetConnectionString("ProductionConnection");
             }
             else
             {
-                connectionString = config.GetConnectionString("DefaultConnection");
+                connectionString = config.GetConnectionString("DevelopmentConnection");
             }
             if (string.IsNullOrEmpty(connectionString))
             {
