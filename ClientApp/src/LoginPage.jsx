@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-export default function LoginPage() {
+export default function LoginPage({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
@@ -16,6 +16,7 @@ export default function LoginPage() {
     if (res.ok) {
       const data = await res.json();
       localStorage.setItem('token', data.token);
+      onLogin();
       navigate('/');
     } else {
       alert('Invalid credentials');

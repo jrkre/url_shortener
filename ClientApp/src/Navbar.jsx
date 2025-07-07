@@ -1,12 +1,11 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-export default function Navbar() {
+export default function Navbar({ isAuthenticated, onLogout }) {
   const navigate = useNavigate();
-  const token = localStorage.getItem('token');
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
+    onLogout(); // Call parent's logout handler
     navigate('/login');
   };
 
@@ -17,7 +16,7 @@ export default function Navbar() {
           URL Shortener
         </Link>
         <div className="space-x-4 text-sm">
-          {!token ? (
+          {!isAuthenticated ? (
             <>
               <Link
                 to="/login"

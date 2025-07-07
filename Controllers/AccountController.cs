@@ -88,6 +88,24 @@ public class AccountController : ControllerBase
         });
     }
 
+    [HttpGet("validate-token")]
+    [Authorize]
+    public IActionResult ValidateToken()
+    {
+        // If we reach here, the token is valid
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = "Invalid token." });
+        }
+        var user = _userManager.FindByIdAsync(userId);
+        if (user == null)
+        {
+            return NotFound(new { Message = "User not found." });
+        }
+        return Ok(new { Message = "Token is valid." });
+    }
+
     [HttpPut("profile")]
     [Authorize]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto model)
