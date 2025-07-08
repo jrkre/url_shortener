@@ -49,17 +49,33 @@ public class AccountController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginDto model)
     {
-        var result = await _signInManager.PasswordSignInAsync(model.Username, model.Password, false, false);
-        Console.WriteLine($"Login attempt for {model.Username}: {result.Succeeded}, {result.ToString()}");
-        if (!result.Succeeded) return Unauthorized(new { Message = "Invalid login attempt." });
+        var result = await _signInManager.PasswordSignInAsync(model.Username, model.Password, isPersistent: true, lockoutOnFailure: false);
+        Console.WriteLine($"Login attempt for {model.Username}: {result.Succeeded}");
+        
+        if (!result.Succeeded) 
+            return Unauthorized(new { Message = "Invalid login attempt." });
 
         var user = await _userManager.FindByNameAsync(model.Username);
+        if (user == null) 
+            return NotFound(new { Message = "User not found." });
 
-        if (user == null) return NotFound(new { Message = "User not found." });
+        return Ok(new { 
+            Message = "Login successful",
+            User = new {
+                Id = user.Id,
+                UserName = user.UserName,
+                Email = user.Email,
+                FullName = user.FullName
+            }
+        });
+    }
 
-        var token = GenerateJwtToken(user);
-
-        return Ok(new { Token = token });
+    [HttpPost("logout")]
+    [Authorize]
+    public async Task<IActionResult> Logout()
+    {
+        await _signInManager.SignOutAsync();
+        return Ok(new { Message = "Logout successful" });
     }
 
     [HttpGet("profile")]
@@ -90,21 +106,31 @@ public class AccountController : ControllerBase
 
     [HttpGet("validate-token")]
     [Authorize]
-    public IActionResult ValidateToken()
+    public async Task<IActionResult> ValidateSession()
     {
-        // If we reach here, the token is valid
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
         {
-            return Unauthorized(new { Message = "Invalid token." });
+            return Unauthorized(new { Message = "Invalid session." });
         }
-        var user = _userManager.FindByIdAsync(userId);
+        
+        var user = await _userManager.FindByIdAsync(userId);
         if (user == null)
         {
             return NotFound(new { Message = "User not found." });
         }
-        return Ok(new { Message = "Token is valid." });
+        
+        return Ok(new { 
+            Message = "Session is valid.",
+            User = new {
+                Id = user.Id,
+                UserName = user.UserName,
+                Email = user.Email,
+                FullName = user.FullName
+            }
+        });
     }
+
 
     [HttpPut("profile")]
     [Authorize]
@@ -245,35 +271,4 @@ public class AccountController : ControllerBase
         return Ok(shortenedUrls);
     }
 
-    private string GenerateJwtToken(ApplicationUser user)
-    {
-        var claims = new[]
-        {
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Sub, user.Email ?? string.Empty),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new Claim(ClaimTypes.Role, "User"),
-            new Claim(ClaimTypes.Name, user.UserName ?? string.Empty)
-            // new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString())
-
-        };
-
-        var jwtKey = _configuration["Jwt:Key"];
-        if (string.IsNullOrEmpty(jwtKey))
-        {
-            throw new InvalidOperationException("JWT key is not configured.");
-        }
-
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-        var token = new JwtSecurityToken(
-            issuer: _configuration["Jwt:Issuer"],
-            audience: _configuration["Jwt:Audience"],
-            claims: claims,
-            expires: DateTime.Now.AddMinutes(30),
-            signingCredentials: creds);
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
-    }
 }

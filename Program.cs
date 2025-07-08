@@ -24,7 +24,6 @@ builder.Configuration.SetBasePath(Directory.GetCurrentDirectory())
     .AddEnvironmentVariables();
 
 
-// Added: Configure Identity and Authentication
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
     options.Password.RequireDigit = true;
@@ -33,62 +32,37 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
-var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT key is not configured.");
+// Configure Cookie Authentication
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/api/account/login";
+    options.LogoutPath = "/api/account/logout";
+    options.AccessDeniedPath = "/api/account/access-denied";
+    options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
+    options.SlidingExpiration = true;
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.Name = "UrlShortenerAuth";
 
-// Configure JWT Bearer
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
+    // Configure for API responses
+    options.Events.OnRedirectToLogin = context =>
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-        ClockSkew = TimeSpan.Zero // Reduce clock skew to avoid timing issues
+        context.Response.StatusCode = 401;
+        return Task.CompletedTask;
     };
-    options.Events = new JwtBearerEvents
+    options.Events.OnRedirectToAccessDenied = context =>
     {
-        OnMessageReceived = context =>
-        {
-            var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
-            if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            {
-                var token = authHeader.Substring("Bearer ".Length).Trim();
-                Console.WriteLine($"Token extracted: {token.Substring(0, Math.Min(20, token.Length))}...");
-                context.Token = token;
-            }
-            else
-            {
-                Console.WriteLine($"No valid Bearer token found in Authorization header: {authHeader}");
-            }
-            return Task.CompletedTask;
-        },
-        OnAuthenticationFailed = context =>
-        {
-            IdentityModelEventSource.ShowPII = true;
-            Console.WriteLine($"Authentication failed: {context.Exception.Message}");
-            Console.WriteLine($"Token: {context.Request.Headers["Authorization"].FirstOrDefault()}");
-            return Task.CompletedTask;
-        },
-        OnTokenValidated = context =>
-        {
-            Console.WriteLine($"Token validated for user: {context.Principal?.Identity?.Name}");
-            return Task.CompletedTask;
-        },
-        OnChallenge = context =>
-        {
-            Console.WriteLine($"Authentication challenge: {context.Error}, {context.ErrorDescription}");
-            return Task.CompletedTask;
-        }
+        context.Response.StatusCode = 403;
+        return Task.CompletedTask;
     };
+});
+
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
 });
 
 string? connectionString;
@@ -164,7 +138,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-// app.UseDefaultFiles();
 
 var reactBuildPath = Path.Combine(Directory.GetCurrentDirectory(), "ClientApp", "build");
 
