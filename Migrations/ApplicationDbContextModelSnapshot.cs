@@ -223,6 +223,32 @@ namespace url_shortener.Migrations
                         .HasDatabaseName("UserNameIndex");
 
                     b.ToTable("AspNetUsers", (string)null);
+            modelBuilder.Entity("url_shortener.Models.ClickEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("IpAddress")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Referrer")
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid>("ShortenedUrlId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("UserAgent")
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ShortenedUrlId");
+
+                    b.ToTable("ClickEvents");
                 });
 
             modelBuilder.Entity("url_shortener.Models.ShortenedUrl", b =>
@@ -320,6 +346,15 @@ namespace url_shortener.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+            modelBuilder.Entity("url_shortener.Models.ClickEvent", b =>
+                {
+                    b.HasOne("url_shortener.Models.ShortenedUrl", "ShortenedUrl")
+                        .WithMany("ClickEvents")
+                        .HasForeignKey("ShortenedUrlId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ShortenedUrl");
                 });
 
             modelBuilder.Entity("url_shortener.Models.ShortenedUrl", b =>
@@ -330,6 +365,7 @@ namespace url_shortener.Migrations
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("User");
+                    b.Navigation("ClickEvents");
                 });
 #pragma warning restore 612, 618
         }

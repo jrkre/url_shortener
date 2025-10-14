@@ -13,11 +13,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     // public string DbPath { get; }
     public DbSet<ShortenedUrl> ShortenedUrls { get; set; }
 
+    public DbSet<ClickEvent> ClickEvents { get; set; } = null!;
+
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
     {
 
-        
+
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -40,6 +42,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                 .HasForeignKey(s => s.UserId)
                 .OnDelete(DeleteBehavior.Cascade);  // Optional: Cascade delete if user is removed
         });
+
+        modelBuilder.Entity<ShortenedUrl>()
+            .HasMany(s => s.ClickEvents)
+            .WithOne(c => c.ShortenedUrl)
+            .HasForeignKey(c => c.ShortenedUrlId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 
     // protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)

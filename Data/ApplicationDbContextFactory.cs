@@ -16,34 +16,34 @@ namespace url_shortener.Data
                 .AddEnvironmentVariables()
                 .Build();
 
-            
-            string? connectionString;
 
-            //if production, use productionconnection string with mysql, otherwise use development connection string and sqlite
-            if (config.GetValue<string>("ASPNETCORE_ENVIRONMENT") == "Production")
+            // Determine environment (use ASPNETCORE_ENVIRONMENT variable or default to Development)
+            var environment = config["ASPNETCORE_ENVIRONMENT"] ?? "Development";
+            var connectionStringName = environment == "Development" ? "DevelopmentConnection" : "ProductionConnection";
+            var connectionString = config.GetConnectionString(connectionStringName);
+
+            if (string.IsNullOrEmpty(connectionString))
             {
-                connectionString = config.GetConnectionString("DefaultConnection") ??
-                                   config.GetConnectionString("ProductionConnection");
+                throw new InvalidOperationException($"Connection string '{connectionStringName}' not found in appsettings.json.");
+            }
+
+            var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
+
+            if (environment == "Development")
+            {
+                optionsBuilder.UseSqlite(connectionString);
             }
             else
             {
-                connectionString = config.GetConnectionString("DevelopmentConnection");
+                optionsBuilder.UseMySql(connectionString,
+                    new MySqlServerVersion(new Version(11, 7, 2)),
+                    mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(30),
+                        errorNumbersToAdd: null
+                    ));
             }
-            if (string.IsNullOrEmpty(connectionString))
-            {
-                throw new InvalidOperationException("Connection string 'DefaultConnection' not found in appsettings.json.");
-            }
-
-
-            var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
-            optionsBuilder.UseMySql(connectionString, new MySqlServerVersion(new Version(11, 7, 2)));
-
-            //give optionsbuilder the connection string from appsettings.json if available
-            // if (config.GetConnectionString("DefaultConnection") != null)
-            // {
-            //     optionsBuilder.UseMySql(config.GetConnectionString("DefaultConnection"));
-            // }
-
+            
             return new ApplicationDbContext(optionsBuilder.Options);
         }
     }

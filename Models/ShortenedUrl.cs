@@ -17,7 +17,7 @@ public class ShortenedUrl
     [Required]
     [MaxLength(255)]
     public string ShortUrl { get; set; }
-    
+
     [Required]
     [MaxLength(10)]
     public string Code { get; set; } // Optional: a unique code for the shortened URL
@@ -28,6 +28,9 @@ public class ShortenedUrl
     public string? UserId { get; set; } // Optional: to associate the shortened URL with a user
     [ForeignKey("UserId")]
     public virtual ApplicationUser? User { get; set; } // Navigation property to the user who created the shortened URL
+    // New analytics properties
+    public List<ClickEvent> ClickEvents { get; set; } = new List<ClickEvent>();
+
 
     public ShortenedUrl()
     {
@@ -39,6 +42,7 @@ public class ShortenedUrl
         IsActive = true; // Default to active
         ExpirationDate = null; // Default to no expiration date
         UserId = string.Empty; // Default to no user association
+        ClickEvents = new List<ClickEvent>();
     }
 
     public ShortenedUrl(string originalUrl, string? shortenedUrl, string? code, DateTime? createdAt, DateTime? expirationDate = null, bool isActive = true, int? clickCount = 0, string? userId = null)
@@ -52,4 +56,19 @@ public class ShortenedUrl
         ClickCount = 0; // Initialize click count to zero
         UserId = userId ?? string.Empty;; // Default to no user association
     }
+}
+
+
+public class ClickEvent
+{
+    [Key]
+    public Guid Id { get; set; }
+    public DateTime Timestamp { get; set; }
+    public string? UserAgent { get; set; }
+    public string? IpAddress { get; set; }
+    public string? Referrer { get; set; }
+
+    public Guid ShortenedUrlId { get; set; }
+    [ForeignKey("ShortenedUrlId")]
+    public ShortenedUrl ShortenedUrl { get; set; } = null!;
 }

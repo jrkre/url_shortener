@@ -12,6 +12,7 @@ using System.IdentityModel.Tokens.Jwt;
 using Newtonsoft.Json;
 using System.Text;
 using Microsoft.IdentityModel.Logging;
+using Pomelo.EntityFrameworkCore.MySql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +24,47 @@ builder.Configuration.SetBasePath(Directory.GetCurrentDirectory())
     .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
     .AddEnvironmentVariables();
 
+var environment = builder.Environment.EnvironmentName;
+var connectionStringName = environment == "Development" ? "DevelopmentConnection" : "ProductionConnection";
+var connectionString = builder.Configuration.GetConnectionString(connectionStringName);
+
+// Configure DbContext with appropriate database provider
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+{
+    if (environment == "Development")
+    {
+        options.UseSqlite(connectionString);
+    }
+    else
+    {
+        options.UseMySql(connectionString,
+            new MySqlServerVersion(new Version(11, 7, 2)),
+            mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null
+            ));
+    }
+});
+
+// Add DbContextFactory for concurrent operations
+builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
+{
+    if (environment == "Development")
+    {
+        options.UseSqlite(connectionString);
+    }
+    else
+    {
+        options.UseMySql(connectionString,
+            new MySqlServerVersion(new Version(11, 7, 2)),
+            mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null
+            ));
+    }
+});
 
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
@@ -75,27 +117,6 @@ if (builder.Environment.IsProduction())
 else
 {
     connectionString = builder.Configuration.GetConnectionString("DevelopmentConnection");
-}
-
-Console.WriteLine($"Using connection string: {connectionString}");
-
-// Configure Entity Framework Core with MySQL if production, otherwise use SQLite
-if (builder.Environment.IsProduction())
-{
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseMySql(connectionString,
-            new MySqlServerVersion(new Version(11, 7, 2)),
-            mySqlOptions => mySqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 5,
-                maxRetryDelay: TimeSpan.FromSeconds(30),
-                errorNumbersToAdd: null
-            )
-        ));
-}
-else
-{
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseSqlite(connectionString));
 }
 
 
