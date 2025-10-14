@@ -144,7 +144,7 @@ public class UrlShorteningService
         throw new InvalidOperationException("Unable to generate unique code after maximum attempts.");
     }
 
-    public async Task<ShortenedUrl> CreateShortenedUrlAsync(CreateShortenedUrlDto shortenedUrlDto)
+    public async Task<ShortenedUrl> CreateShortenedUrlAsync(CreateShortenedUrlDto shortenedUrlDto, string userId)
     {
         // Input validation (unchanged for correctness)
         if (string.IsNullOrWhiteSpace(shortenedUrlDto.OriginalUrl))
@@ -169,7 +169,8 @@ public class UrlShorteningService
             shortenedUrl: null,
             code: null,
             createdAt: now,
-            expirationDate: shortenedUrlDto.ExpirationDate ?? now.AddDays(ShortLinkSettings.DefaultExpirationDays))
+            expirationDate: shortenedUrlDto.ExpirationDate ?? now.AddDays(ShortLinkSettings.DefaultExpirationDays), 
+            userId: userId)
         {
             CreatedAt = now,
             ClickCount = 0,
@@ -327,13 +328,23 @@ public class UrlShorteningService
         return url;
     }
 
-
-    public async Task<IEnumerable<ShortenedUrl>> GetAllShortenedUrlsAsync()
+    public async Task<IEnumerable<ShortenedUrl>> GetAllShortenedUrlsAsync(string? userId)
     {
-        using var dbContext = await _dbContextFactory.CreateDbContextAsync();
-        return await dbContext.ShortenedUrls
-            .AsNoTracking() // Optimize for read-only query
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            return await _dbContext.ShortenedUrls
+                .Where(s => s.UserId == userId && s.IsActive && (s.ExpirationDate == null || s.ExpirationDate > DateTime.UtcNow))
+                .ToListAsync();
+        }
+        return await _dbContext.ShortenedUrls
             .Where(s => s.IsActive && (s.ExpirationDate == null || s.ExpirationDate > DateTime.UtcNow))
+            .ToListAsync();
+    }
+    
+    public async Task<IEnumerable<ShortenedUrl>> GetShortenedUrlsByUserAsync(string userId)
+    {
+        return await _dbContext.ShortenedUrls
+            .Where(s => s.UserId == userId && s.IsActive && (s.ExpirationDate == null || s.ExpirationDate > DateTime.UtcNow))
             .ToListAsync();
     }
 

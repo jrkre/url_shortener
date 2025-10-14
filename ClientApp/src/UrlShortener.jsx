@@ -17,15 +17,75 @@ export default function UrlShortener({ onShorten }) {
   });
   const [shortUrl, setShortUrl] = useState('');
   const [loading, setLoading] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(-1);
+  const token = localStorage.getItem('token');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [codeSuggestions, setCodeSuggestions] = useState([]);
 
-  // Error handling states
-  const [error, setError] = useState('');
-  const [urlError, setUrlError] = useState('');
-  const [codeError, setCodeError] = useState('');
-  const [dateError, setDateError] = useState('');
+  // Generate code suggestions based on the URL
+  const generateCodeSuggestions = () => {
+    const suggestions = [];
+    
+    if (url) {
+      try {
+        const urlObj = new URL(url);
+        const domain = urlObj.hostname.replace('www.', '');
+        const path = urlObj.pathname;
+        
+        // Domain-based suggestions
+        const domainParts = domain.split('.');
+        if (domainParts.length > 0) {
+          const mainDomain = domainParts[0];
+          suggestions.push(mainDomain.substring(0, 6).toLowerCase());
+          if (mainDomain.length > 3) {
+            suggestions.push(mainDomain.substring(0, 3).toLowerCase() + Math.floor(Math.random() * 100));
+          }
+        }
+        
+        // Path-based suggestions
+        if (path && path !== '/') {
+          const pathParts = path.split('/').filter(p => p);
+          if (pathParts.length > 0) {
+            const firstPath = pathParts[0].replace(/[^a-zA-Z0-9]/g, '');
+            if (firstPath) {
+              suggestions.push(firstPath.substring(0, 6).toLowerCase());
+            }
+          }
+        }
+      } catch (e) {
+        // If URL parsing fails, generate generic suggestions
+      }
+    }
+    
+    // Add some random suggestions
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    for (let i = 0; i < 3; i++) {
+      let randomCode = '';
+      for (let j = 0; j < 6; j++) {
+        randomCode += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      suggestions.push(randomCode);
+    }
+    
+    // Remove duplicates and limit to 5 suggestions
+    return [...new Set(suggestions)].slice(0, 5);
+  };
+
+  const handleCodeInputFocus = () => {
+    const suggestions = generateCodeSuggestions();
+    setCodeSuggestions(suggestions);
+    setShowSuggestions(true);
+  };
+
+  const handleCodeInputBlur = () => {
+    // Delay hiding suggestions to allow clicking on them
+    setTimeout(() => setShowSuggestions(false), 200);
+  };
+
+  const selectSuggestion = (suggestion) => {
+    setRequestCode(suggestion);
+    setShowSuggestions(false);
+  };
+  
 
   // Validation functions
   const validateUrl = (urlString) => {
@@ -103,50 +163,48 @@ export default function UrlShortener({ onShorten }) {
     setLoading(true);
 
     try {
+      const token = localStorage.getItem('token');
+
+      if (!token) {
+        throw new Error('No authentication token found. Please log in.');
+      }
+
       const response = await fetch('/api/url/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ 
           originalUrl: url, 
           requestedCode: requestCode, 
           expirationDate: expirationDate.toISOString()
         }),
       });
-      
-      const data = await response.json();
-      
+
+      // Check if response is ok before trying to parse JSON
       if (!response.ok) {
-        // Handle specific API errors
-        if (response.status === 400) {
-          setError(data.message || data || 'Invalid request. Please check your inputs.');
-        } else if (response.status === 409) {
-          setCodeError('This code is already taken. Please try a different one.');
-        } else if (response.status >= 500) {
-          setError('Server error. Please try again later.');
-        } else {
-          setError(data.message || 'An unexpected error occurred.');
+        // Try to get error message from response
+        let errorMessage = 'Failed to shorten URL';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+          // If response isn't JSON, get text
+          // const errorText = await response.text();
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`;
         }
-        return;
+        throw new Error(errorMessage);
       }
-      
+
+      const data = await response.json();
+
       setShortUrl(data.shortUrl);
       setShortenedUrls(prev => [data, ...prev]);
       onShorten(data);
-      
-      // Clear form on success
-      setUrl('');
-      setRequestCode('');
-      const newDate = new Date();
-      newDate.setDate(newDate.getDate() + 30);
-      setExpirationDate(newDate);
-      
     } catch (err) {
       console.error('Error:', err);
-      if (err.name === 'TypeError' && err.message.includes('fetch')) {
-        setError('Network error. Please check your connection and try again.');
-      } else {
-        setError('An unexpected error occurred. Please try again.');
-      }
+      alert(`Error: ${err.message}`); // Show user-friendly error
     } finally {
       setLoading(false);
     }

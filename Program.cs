@@ -3,6 +3,15 @@ using Microsoft.Extensions.FileProviders;
 using url_shortener.Data;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Pomelo.EntityFrameworkCore.MySql.Internal;
+using Microsoft.AspNetCore.Identity;
+using url_shortener.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using Newtonsoft.Json;
+using System.Text;
+using Microsoft.IdentityModel.Logging;
 using Pomelo.EntityFrameworkCore.MySql;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -57,18 +66,62 @@ builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
     }
 });
 
-//grab login information from environment variables if available
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+{
+    options.Password.RequireDigit = true;
+    options.Password.RequiredLength = 8;
+})
+.AddEntityFrameworkStores<ApplicationDbContext>()
+.AddDefaultTokenProviders();
 
-// var dbUser = Environment.GetEnvironmentVariable("DB_USER");
-// var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+// Configure Cookie Authentication
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/api/account/login";
+    options.LogoutPath = "/api/account/logout";
+    options.AccessDeniedPath = "/api/account/access-denied";
+    options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
+    options.SlidingExpiration = true;
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.Name = "UrlShortenerAuth";
 
-// if (!string.IsNullOrEmpty(dbUser) && !string.IsNullOrEmpty(dbPassword))
-// {
-//     connectionString += $"user={dbUser};password={dbPassword};";
-// }
+    // Configure for API responses
+    options.Events.OnRedirectToLogin = context =>
+    {
+        context.Response.StatusCode = 401;
+        return Task.CompletedTask;
+    };
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        context.Response.StatusCode = 403;
+        return Task.CompletedTask;
+    };
+});
+
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
+
+string? connectionString;
+
+//if production, use productionconnection string with mysql, otherwise use development connection string and sqlite
+if (builder.Environment.IsProduction())
+{
+    connectionString = builder.Configuration.GetConnectionString("ProductionConnection");
+}
+else
+{
+    connectionString = builder.Configuration.GetConnectionString("DevelopmentConnection");
+}
 
 
 builder.Services.AddScoped<url_shortener.Services.UrlShorteningService>();
+
 
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(@"/var/dpkeys"))
@@ -94,13 +147,18 @@ if (!app.Environment.IsDevelopment())
 app.Use(async (context, next) =>
 {
     Console.WriteLine($"Request: {context.Request.Method} {context.Request.Path}");
+    var authHeader = context.Request.Headers["Authorization"].ToString();
+    Console.WriteLine($"Authorization Header: {authHeader}");
     await next.Invoke();
 });
 
 // app.UseHttpsRedirection();
+
 app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapControllers();
-// app.UseDefaultFiles();
 
 var reactBuildPath = Path.Combine(Directory.GetCurrentDirectory(), "ClientApp", "build");
 

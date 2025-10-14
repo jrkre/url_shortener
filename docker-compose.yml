@@ -41,7 +41,7 @@ services:
       # - client
       - mariadb-prod
     environment:
-      - ASPNETCORE_ENVIRONMENT=Production
+      # - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_HTTPS_PORT=2443
     restart: always
     volumes:
