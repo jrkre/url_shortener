@@ -21,6 +21,15 @@ export default function UrlShortener({ onShorten }) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [codeSuggestions, setCodeSuggestions] = useState([]);
 
+  // Error handling states
+  const [error, setError] = useState('');
+  const [urlError, setUrlError] = useState('');
+  const [codeError, setCodeError] = useState('');
+  const [dateError, setDateError] = useState('');
+  const [activeIndex, setActiveIndex] = useState(-1);
+
+
+
   // Generate code suggestions based on the URL
   const generateCodeSuggestions = () => {
     const suggestions = [];
@@ -70,21 +79,6 @@ export default function UrlShortener({ onShorten }) {
     return [...new Set(suggestions)].slice(0, 5);
   };
 
-  const handleCodeInputFocus = () => {
-    const suggestions = generateCodeSuggestions();
-    setCodeSuggestions(suggestions);
-    setShowSuggestions(true);
-  };
-
-  const handleCodeInputBlur = () => {
-    // Delay hiding suggestions to allow clicking on them
-    setTimeout(() => setShowSuggestions(false), 200);
-  };
-
-  const selectSuggestion = (suggestion) => {
-    setRequestCode(suggestion);
-    setShowSuggestions(false);
-  };
   
 
   // Validation functions

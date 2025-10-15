@@ -35,21 +35,21 @@ public class UrlController : ControllerBase
             return BadRequest(new { message = "Invalid URL data." });
         }
         
-        try
-        {
-            var createdUrl = UrlShorteningService.CreateShortenedUrlAsync(shortenedUrl).Result;
-            Console.WriteLine($"Created URL: {createdUrl.ShortUrl} for Original URL: {createdUrl.OriginalUrl}");
-            return CreatedAtAction(nameof(CreateShortenedUrl), new { code = createdUrl.Code }, createdUrl);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(ex.Message);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error creating shortened URL: {ex.Message}");
-            return StatusCode(500, "An error occurred while creating the shortened URL.");
-        }
+        // try
+        // {
+        //     var createdUrl = UrlShorteningService.CreateShortenedUrlAsync(shortenedUrl).Result;
+        //     Console.WriteLine($"Created URL: {createdUrl.ShortUrl} for Original URL: {createdUrl.OriginalUrl}");
+        //     return CreatedAtAction(nameof(CreateShortenedUrl), new { code = createdUrl.Code }, createdUrl);
+        // }
+        // catch (ArgumentException ex)
+        // {
+        //     return BadRequest(ex.Message);
+        // }
+        // catch (Exception ex)
+        // {
+        //     Console.WriteLine($"Error creating shortened URL: {ex.Message}");
+        //     return StatusCode(500, "An error occurred while creating the shortened URL.");
+        // }
 
         Console.WriteLine($"Received URL to shorten: {shortenedUrl.OriginalUrl} from User: {User.Identity?.Name}");
 

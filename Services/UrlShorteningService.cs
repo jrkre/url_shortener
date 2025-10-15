@@ -330,6 +330,7 @@ public class UrlShorteningService
 
     public async Task<IEnumerable<ShortenedUrl>> GetAllShortenedUrlsAsync(string? userId)
     {
+        using var _dbContext = await _dbContextFactory.CreateDbContextAsync();
         if (!string.IsNullOrWhiteSpace(userId))
         {
             return await _dbContext.ShortenedUrls
@@ -343,6 +344,7 @@ public class UrlShorteningService
     
     public async Task<IEnumerable<ShortenedUrl>> GetShortenedUrlsByUserAsync(string userId)
     {
+        using var _dbContext = await _dbContextFactory.CreateDbContextAsync();
         return await _dbContext.ShortenedUrls
             .Where(s => s.UserId == userId && s.IsActive && (s.ExpirationDate == null || s.ExpirationDate > DateTime.UtcNow))
             .ToListAsync();

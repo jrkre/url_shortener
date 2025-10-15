@@ -17,20 +17,14 @@ export default function AnalyticsPage() {
     if (!redirectCode) return;
 
     const fetchAnalytics = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setError('You must be logged in to view analytics.');
-        setLoading(false);
-        return;
-      }
       try {
         setLoading(true);
         const res = await fetch(`/api/url/analytics/${redirectCode}`, {
           method: 'GET',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` // Ensure token is sent
-          }
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
         });
         if (!res.ok) throw new Error('Failed to fetch analytics');
         const data = await res.json();

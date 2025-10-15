@@ -5,7 +5,7 @@ services:
     restart: always
     environment:
       MARIADB_ROOT_PASSWORD: mariadb123
-      MARIADB_DATABASE: urlshortenerdb_analytics
+      MARIADB_DATABASE: urlshortenerdb
       MARIADB_USER: user
       MARIADB_PASSWORD: password_for_url_shortener
     ports:
@@ -41,7 +41,7 @@ services:
       # - client
       - mariadb-prod
     environment:
-      # - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_HTTPS_PORT=2443
     restart: always
     volumes:

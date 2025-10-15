@@ -19,7 +19,7 @@ namespace url_shortener.Data
 
             // Determine environment (use ASPNETCORE_ENVIRONMENT variable or default to Development)
             var environment = config["ASPNETCORE_ENVIRONMENT"] ?? "Development";
-            var connectionStringName = environment == "Development" ? "DevelopmentConnection" : "ProductionConnection";
+            var connectionStringName = environment == "Development" ? "DefaultConnection" : "ProductionConnection";
             var connectionString = config.GetConnectionString(connectionStringName);
 
             if (string.IsNullOrEmpty(connectionString))
@@ -31,7 +31,13 @@ namespace url_shortener.Data
 
             if (environment == "Development")
             {
-                optionsBuilder.UseSqlite(connectionString);
+                optionsBuilder.UseMySql(connectionString,
+                    new MySqlServerVersion(new Version(11, 7, 2)),
+                    mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(30),
+                        errorNumbersToAdd: null
+                    ));
             }
             else
             {

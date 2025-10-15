@@ -33,9 +33,8 @@ export default function UserDashboard() {
       
       // Fetch user profile
       const profileRes = await fetch('/api/account/profile', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        method: 'GET',
+        credentials: 'include'
       });
       
       if (profileRes.ok) {
@@ -71,9 +70,9 @@ export default function UserDashboard() {
       const res = await fetch('/api/account/profile', {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify(profileForm)
       });
 
@@ -101,9 +100,7 @@ export default function UserDashboard() {
     try {
       const res = await fetch('/api/account/profile/picture', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        credentials: 'include',
         body: formData
       });
 

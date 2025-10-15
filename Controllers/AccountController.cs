@@ -8,6 +8,8 @@ using url_shortener.Models;
 using url_shortener.DTO;
 using Microsoft.AspNetCore.Authorization;
 using url_shortener.Services;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication;
 
 namespace url_shortener.Controllers;
 
@@ -56,8 +58,21 @@ public class AccountController : ControllerBase
             return Unauthorized(new { Message = "Invalid login attempt." });
 
         var user = await _userManager.FindByNameAsync(model.Username);
-        if (user == null) 
+        if (user == null)
             return NotFound(new { Message = "User not found." });
+
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.Name, user.UserName),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
+        };
+
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        var principal = new ClaimsPrincipal(identity);
+
+        
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
 
         return Ok(new { 
             Message = "Login successful",
@@ -108,27 +123,7 @@ public class AccountController : ControllerBase
     [Authorize]
     public async Task<IActionResult> ValidateSession()
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId))
-        {
-            return Unauthorized(new { Message = "Invalid session." });
-        }
-        
-        var user = await _userManager.FindByIdAsync(userId);
-        if (user == null)
-        {
-            return NotFound(new { Message = "User not found." });
-        }
-        
-        return Ok(new { 
-            Message = "Session is valid.",
-            User = new {
-                Id = user.Id,
-                UserName = user.UserName,
-                Email = user.Email,
-                FullName = user.FullName
-            }
-        });
+        return Ok(new { Message = "Session is valid.", user = User.Identity?.Name });
     }
 
 
@@ -251,7 +246,7 @@ public class AccountController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { Message = "An error occurred while uploading the file." });
+            return StatusCode(500, new { Message = $"An error occurred while uploading the file. {ex.Message}" });
         }
     }
     

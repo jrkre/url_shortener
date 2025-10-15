@@ -48,6 +48,22 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             .WithOne(c => c.ShortenedUrl)
             .HasForeignKey(c => c.ShortenedUrlId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<IdentityRole>(entity =>
+        {
+            entity.Property(r => r.Id).HasColumnType("varchar(255)");
+            entity.Property(r => r.Name).HasColumnType("varchar(256)");
+            entity.Property(r => r.NormalizedName).HasColumnType("varchar(256)");
+        });
+        modelBuilder.Entity<IdentityUser>(entity =>
+        {
+            entity.Property(u => u.Id).HasColumnType("varchar(255)");
+            entity.Property(u => u.UserName).HasColumnType("varchar(256)");
+            entity.Property(u => u.NormalizedUserName).HasColumnType("varchar(256)");
+            entity.Property(u => u.Email).HasColumnType("varchar(256)");
+            entity.Property(u => u.NormalizedEmail).HasColumnType("varchar(256)");
+        });
+
     }
 
     // protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)

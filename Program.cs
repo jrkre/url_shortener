@@ -13,6 +13,8 @@ using Newtonsoft.Json;
 using System.Text;
 using Microsoft.IdentityModel.Logging;
 using Pomelo.EntityFrameworkCore.MySql;
+using System.Net;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,15 +27,24 @@ builder.Configuration.SetBasePath(Directory.GetCurrentDirectory())
     .AddEnvironmentVariables();
 
 var environment = builder.Environment.EnvironmentName;
-var connectionStringName = environment == "Development" ? "DevelopmentConnection" : "ProductionConnection";
+var connectionStringName = environment == "Development" ? "DefaultConnection" : "ProductionConnection";
 var connectionString = builder.Configuration.GetConnectionString(connectionStringName);
 
+Console.WriteLine($"Using connection string: {connectionString}");
+
 // Configure DbContext with appropriate database provider
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
 {
     if (environment == "Development")
     {
-        options.UseSqlite(connectionString);
+        options.UseMySql(connectionString,
+            new MySqlServerVersion(new Version(11, 7, 2)),
+            mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null
+
+            ));
     }
     else
     {
@@ -52,7 +63,13 @@ builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
 {
     if (environment == "Development")
     {
-        options.UseSqlite(connectionString);
+        options.UseMySql(connectionString,
+            new MySqlServerVersion(new Version(11, 7, 2)),
+            mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null
+            ));
     }
     else
     {
@@ -74,31 +91,42 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
-// Configure Cookie Authentication
-builder.Services.ConfigureApplicationCookie(options =>
-{
-    options.LoginPath = "/api/account/login";
-    options.LogoutPath = "/api/account/logout";
-    options.AccessDeniedPath = "/api/account/access-denied";
-    options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
-    options.SlidingExpiration = true;
-    options.Cookie.HttpOnly = true;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-    options.Cookie.SameSite = SameSiteMode.Lax;
-    options.Cookie.Name = "UrlShortenerAuth";
+// // Configure Cookie Authentication
+// builder.Services.ConfigureApplicationCookie(options =>
+// {
+//     options.LoginPath = "/api/account/login";
+//     options.LogoutPath = "/api/account/logout";
+//     options.AccessDeniedPath = "/api/account/access-denied";
+//     options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
+//     options.SlidingExpiration = true;
+//     options.Cookie.HttpOnly = true;
+//     options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+//     options.Cookie.SameSite = SameSiteMode.Lax;
+//     options.Cookie.Name = "UrlShortenerAuth";
 
-    // Configure for API responses
-    options.Events.OnRedirectToLogin = context =>
+//     // Configure for API responses
+//     options.Events.OnRedirectToLogin = context =>
+//     {
+//         context.Response.StatusCode = 401;
+//         return Task.CompletedTask;
+//     };
+//     options.Events.OnRedirectToAccessDenied = context =>
+//     {
+//         context.Response.StatusCode = 403;
+//         return Task.CompletedTask;
+//     };
+// });
+
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
     {
-        context.Response.StatusCode = 401;
-        return Task.CompletedTask;
-    };
-    options.Events.OnRedirectToAccessDenied = context =>
-    {
-        context.Response.StatusCode = 403;
-        return Task.CompletedTask;
-    };
-});
+        options.LoginPath = "/api/account/login";   // optional: redirect path
+        options.LogoutPath = "/api/account/logout";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // important for HTTPS
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Cookie.Name = "url_shortener_auth";
+    });
 
 builder.Services.AddSession(options =>
 {
@@ -107,17 +135,7 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
-string? connectionString;
 
-//if production, use productionconnection string with mysql, otherwise use development connection string and sqlite
-if (builder.Environment.IsProduction())
-{
-    connectionString = builder.Configuration.GetConnectionString("ProductionConnection");
-}
-else
-{
-    connectionString = builder.Configuration.GetConnectionString("DevelopmentConnection");
-}
 
 
 builder.Services.AddScoped<url_shortener.Services.UrlShorteningService>();
@@ -144,19 +162,34 @@ if (!app.Environment.IsDevelopment())
 // }
 
 
-app.Use(async (context, next) =>
-{
-    Console.WriteLine($"Request: {context.Request.Method} {context.Request.Path}");
-    var authHeader = context.Request.Headers["Authorization"].ToString();
-    Console.WriteLine($"Authorization Header: {authHeader}");
-    await next.Invoke();
-});
 
 // app.UseHttpsRedirection();
 
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.Use(async (context, next) =>
+{
+    Console.WriteLine($"====== Request: {context.Request.Method} {context.Request.Path} ======");
+
+    if (context.User?.Identity != null && context.User.Identity.IsAuthenticated)
+    {
+        var username = context.User.Identity.Name ?? "(no name claim)";
+
+        Console.WriteLine($"Authenticated user: {username}");
+        foreach (var claim in context.User.Claims)
+        {
+            Console.WriteLine($"Claim: {claim.Type} = {claim.Value}");
+        }
+    }
+    else
+    {
+        Console.WriteLine("Unauthenticated request");
+    }
+
+    await next.Invoke();
+});
 
 app.MapControllers();
 

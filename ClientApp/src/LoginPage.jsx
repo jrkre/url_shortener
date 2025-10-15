@@ -15,7 +15,7 @@ export default function LoginPage({ onLogin }) {
 
     if (res.ok) {
       const data = await res.json();
-      localStorage.setItem('token', data.token);
+      // localStorage.setItem('token', data.token);
       onLogin();
       navigate('/');
     } else {
