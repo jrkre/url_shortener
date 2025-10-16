@@ -16,23 +16,40 @@ namespace url_shortener.Data
                 .AddEnvironmentVariables()
                 .Build();
 
-            
-            var connectionString = config.GetConnectionString("DefaultConnection");
+
+            // Determine environment (use ASPNETCORE_ENVIRONMENT variable or default to Development)
+            var environment = config["ASPNETCORE_ENVIRONMENT"] ?? "Development";
+            var connectionStringName = environment == "Development" ? "DefaultConnection" : "ProductionConnection";
+            var connectionString = config.GetConnectionString(connectionStringName);
+
             if (string.IsNullOrEmpty(connectionString))
             {
-                throw new InvalidOperationException("Connection string 'DefaultConnection' not found in appsettings.json.");
+                throw new InvalidOperationException($"Connection string '{connectionStringName}' not found in appsettings.json.");
             }
 
-
             var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
-            optionsBuilder.UseMySql(connectionString, new MySqlServerVersion(new Version(11, 7, 2)));
 
-            //give optionsbuilder the connection string from appsettings.json if available
-            // if (config.GetConnectionString("DefaultConnection") != null)
-            // {
-            //     optionsBuilder.UseMySql(config.GetConnectionString("DefaultConnection"));
-            // }
-
+            if (environment == "Development")
+            {
+                optionsBuilder.UseMySql(connectionString,
+                    new MySqlServerVersion(new Version(11, 7, 2)),
+                    mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(30),
+                        errorNumbersToAdd: null
+                    ));
+            }
+            else
+            {
+                optionsBuilder.UseMySql(connectionString,
+                    new MySqlServerVersion(new Version(11, 7, 2)),
+                    mySqlOptions => mySqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(30),
+                        errorNumbersToAdd: null
+                    ));
+            }
+            
             return new ApplicationDbContext(optionsBuilder.Options);
         }
     }

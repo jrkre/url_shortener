@@ -19,7 +19,13 @@ export default function AnalyticsPage() {
     const fetchAnalytics = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`/api/url/analytics/${redirectCode}`);
+        const res = await fetch(`/api/url/analytics/${redirectCode}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
         if (!res.ok) throw new Error('Failed to fetch analytics');
         const data = await res.json();
         setAnalytics(data);
