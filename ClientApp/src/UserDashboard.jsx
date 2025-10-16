@@ -15,15 +15,9 @@ export default function UserDashboard() {
   const [profilePicture, setProfilePicture] = useState(null);
   const [uploading, setUploading] = useState(false);
 
-  const token = localStorage.getItem('token');
-
+  // Don't rely on localStorage token; backend uses cookie-based auth.
+  // Fetch using credentials: 'include' so server-side auth cookie is sent.
   useEffect(() => {
-    if (!token) {
-      setError('You must be logged in to view your dashboard.');
-      setLoading(false);
-      return;
-    }
-    
     fetchUserData();
   }, []);
 
@@ -31,7 +25,7 @@ export default function UserDashboard() {
     try {
       setLoading(true);
       
-      // Fetch user profile
+      // Fetch user profile (include cookies)
       const profileRes = await fetch('/api/account/profile', {
         method: 'GET',
         credentials: 'include'
@@ -42,20 +36,22 @@ export default function UserDashboard() {
         setUserProfile(profileData);
         setProfileForm({
           fullName: profileData.fullName || '',
-          email: profileData.email || ''
+          email: profileData.email
         });
+        setProfilePicture(profileData.profilePicture || null);
       }
 
-      // Fetch user URLs
+      // Fetch user URLs (use cookie auth)
       const urlsRes = await fetch('/api/account/', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        method: 'GET',
+        credentials: 'include'
       });
-      
+
       if (urlsRes.ok) {
         const urlsData = await urlsRes.json();
         setUserUrls(urlsData);
+      } else if (urlsRes.status === 401) {
+        setError('Unauthorized. Please log in.');
       }
     } catch (err) {
       setError(err.message);
@@ -142,7 +138,7 @@ export default function UserDashboard() {
           <div className="flex items-center space-x-4">
             <div className="relative">
               <img
-                src={userProfile?.profilePicture || '/api/placeholder/80/80'}
+                src={userProfile?.profilePicture || (profilePicture ? URL.createObjectURL(profilePicture) : 'https://via.placeholder.com/150')}
                 alt="Profile"
                 className="w-20 h-20 rounded-full object-cover border-4 border-gray-200 dark:border-gray-600"
               />

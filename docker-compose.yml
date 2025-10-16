@@ -1,8 +1,9 @@
 services:
 
-  mariadb-prod:
+  mariadb-dev:
     image: mariadb:latest
     restart: always
+    container_name: mariadb-dev
     environment:
       MARIADB_ROOT_PASSWORD: mariadb123
       MARIADB_DATABASE: urlshortenerdb
@@ -15,10 +16,10 @@ services:
     networks:
       - url-shortener-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$MARIADB_ROOT_PASSWORD"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
       start_period: 20s
 
 
@@ -39,7 +40,7 @@ services:
       - "2443:2443"
     depends_on:
       # - client
-      - mariadb-prod
+      - mariadb-dev
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_HTTPS_PORT=2443
@@ -48,6 +49,9 @@ services:
       - dpkeys:/var/dpkeys
     networks:
       - url-shortener-network
+    command: >
+      sh -c "dotnet ef database update &&
+             dotnet url_shortener.dll"
 
 
 networks: 

@@ -1,40 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Navigate } from 'react-router-dom';
 
-export default function PrivateRoute({ children }) {
-  const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  useEffect(() => {
-    const validateToken = async () => {
-      try {
-        const res = await fetch('/api/account/validate-token', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include' // send cookies
-        });
-
-        if (res.ok) {
-          setIsAuthenticated(true);
-        } else {
-          setIsAuthenticated(false);
-        }
-      } catch (error) {
-        console.error('Validation error:', error);
-        setIsAuthenticated(false);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    validateToken();
-  }, []);
-
-  if (loading) {
-    return <div>Loading...</div>; // or a spinner
-  }
+// Consume auth state from parent (App) as a single source of truth.
+// Props:
+// - children: the protected route element(s)
+// - isAuthenticated: boolean from App
+// - isLoading: optional boolean indicating whether App is still checking auth
+export default function PrivateRoute({ children, isAuthenticated, isLoading }) {
+  // If parent is still checking auth, show a loading placeholder
+  if (isLoading) return <div>Loading...</div>;
 
   return isAuthenticated ? children : <Navigate to="/login" />;
 }

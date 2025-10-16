@@ -11,79 +11,58 @@ import UserDashboard from './UserDashboard';
 
 function App() {
   const [shortenedUrls, setShortenedUrls] = useState([]);
-  const [darkMode, setDarkMode] = useState(true); // Default to dark mode
+  const [darkMode, setDarkMode] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check authentication status on app load
+  // ✅ Check authentication on mount
   useEffect(() => {
-    const checkAuthStatus = () => {
-      setIsLoading(true);
-      const token = localStorage.getItem('token');
-      if (token) {
-        fetch('/api/account/validate-token', {
+    const checkAuthStatus = async () => {
+      try {
+        setIsLoading(true);
+        const res = await fetch('/api/account/auth-status', {
           method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include'
-
-        })
-        .then(res => {
-          if (res.ok) {
-            console.log('Token is valid');
-          }
-        }).then(data => {
-          console.log('Token validation response:', data);
-          if (data) {
-            setIsAuthenticated(true);
-          } else {
-            setIsAuthenticated(false);
-          }
-        }).catch(() => {
-          setIsAuthenticated(false);
-        }).finally(() => {
-          setIsLoading(false);
+          credentials: 'include', // send cookies
         });
-      } else {
+
+        if (res.ok) {
+          const data = await res.json();
+          setIsAuthenticated(data.isAuthenticated === true);
+        } else {
+          setIsAuthenticated(false);
+        }
+      } catch (err) {
+        console.error('Auth check failed:', err);
         setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     checkAuthStatus();
-
-    // Listen for storage changes (login/logout in other tabs)
-    const handleStorageChange = (e) => {
-      if (e.key === 'token') {
-        setIsAuthenticated(!!e.newValue);
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
+  // ✅ Handle dark mode toggling
   useEffect(() => {
-    const root = window.document.documentElement;
-    if (darkMode) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
+    const root = document.documentElement;
+    if (darkMode) root.classList.add('dark');
+    else root.classList.remove('dark');
   }, [darkMode]);
 
-  const handleShorten = (data) => {
-    setShortenedUrls(prev => [data, ...prev]);
-  };
-
-  const handleLogin = () => {
-    setIsAuthenticated(true);
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('token');
+  // ✅ Simple state handlers
+  const handleShorten = (data) => setShortenedUrls(prev => [data, ...prev]);
+  const handleLogin = () => setIsAuthenticated(true);
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/account/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch (err) {
+      console.error('Logout failed:', err);
+    } finally {
+      setIsAuthenticated(false);
+    }
   };
 
   if (isLoading) {
@@ -97,16 +76,35 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors text-gray-900 dark:text-white">
       <Navbar isAuthenticated={isAuthenticated} onLogout={handleLogout} />
-      <div className="flex justify-between items-center p-4 max-w-md mx-auto">
-        
-      </div>
+
       <Routes>
         <Route path="/" element={<UrlShortener onShorten={handleShorten} />} />
-        <Route path="/urls" element={<PrivateRoute setIsAuthenticated={setIsAuthenticated}><AllUrlList /></PrivateRoute>} />
-        <Route path="/analytics/:redirectCode" element={<PrivateRoute setIsAuthenticated={setIsAuthenticated}><AnalyticsPage /></PrivateRoute>} />
+        <Route
+          path="/urls"
+          element={
+            <PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}>
+              <AllUrlList />
+            </PrivateRoute >
+          }
+        />
+        <Route
+          path="/analytics/:redirectCode"
+          element={
+            <PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}>
+              <AnalyticsPage />
+            </PrivateRoute>
+          }
+        />
         <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/account" element={<PrivateRoute setIsAuthenticated={setIsAuthenticated}><UserDashboard /></PrivateRoute>} />
+        <Route
+          path="/account"
+          element={
+            <PrivateRoute isAuthenticated={isAuthenticated} isLoading={isLoading}>
+              <UserDashboard />
+            </PrivateRoute>
+          }
+        />
       </Routes>
     </div>
   );

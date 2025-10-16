@@ -119,11 +119,11 @@ public class AccountController : ControllerBase
         });
     }
 
-    [HttpGet("validate-token")]
+    [HttpGet("auth-status")]
     [Authorize]
     public async Task<IActionResult> ValidateSession()
     {
-        return Ok(new { Message = "Session is valid.", user = User.Identity?.Name });
+        return Ok(new { isAuthenticated = true, user = User.Identity?.Name });
     }
 
 

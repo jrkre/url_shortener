@@ -157,18 +157,13 @@ export default function UrlShortener({ onShorten }) {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('token');
-
-      if (!token) {
-        throw new Error('No authentication token found. Please log in.');
-      }
 
       const response = await fetch('/api/url/create', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
         },
+        credentials: 'include',
         body: JSON.stringify({ 
           originalUrl: url, 
           requestedCode: requestCode, 
@@ -256,6 +251,7 @@ export default function UrlShortener({ onShorten }) {
               originalUrl: url, 
               requestedCode: requestCode || ""
             })
+            
           }
         );
         const data = await response.json();
